@@ -411,6 +411,8 @@ Rules:
 - Dark theme: bg #050505, accent #00ff88
 - Responsive, production-quality
 - All CSS in <style>, all JS in <script>
+- Keep code compact: use CSS shorthand, minimize whitespace, avoid comments
+- MUST include complete <body> with visible content
 - If modifying previous output, return the FULL updated file
 - No explanation outside the code block`;
 
@@ -436,7 +438,7 @@ Rules:
         const r = await fetch(BASE + '/v1/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
-          body: JSON.stringify({ model: document.getElementById('model-sel').value, messages, max_tokens: 2000 }),
+          body: JSON.stringify({ model: document.getElementById('model-sel').value, messages, max_tokens: 3000 }),
           signal: controller.signal
         });
         clearTimeout(timeout);

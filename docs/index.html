@@ -429,16 +429,19 @@ Rules:
         });
         const d = await r.json();
         typing.remove();
-        if (d.choices && d.choices[0]) {
+        if (d.error) {
+          const msg = d.error.message || 'Something went wrong. Please try again later.';
+          addMsg('ai', '⚠️ ' + msg);
+        } else if (d.choices && d.choices[0]) {
           const reply = d.choices[0].message.content;
           history.push({ role: 'ai', content: reply }); saveHistory();
           addMsg('ai', reply);
           const m = reply.match(/```html\n([\s\S]*?)```/);
           if (m) setPreview(m[1]);
         } else {
-          addMsg('ai', 'Error: ' + JSON.stringify(d));
+          addMsg('ai', '⚠️ Unexpected response. Please try again.');
         }
-      } catch (e) { typing.remove(); addMsg('ai', 'Error: ' + e.message); }
+      } catch (e) { typing.remove(); addMsg('ai', '⚠️ Network error. Please check your connection and try again.'); }
 
       busy = false; setStatus('IDLE');
       document.getElementById('send-btn').disabled = false;

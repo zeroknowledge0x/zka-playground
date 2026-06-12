@@ -144,6 +144,33 @@
     .output-empty-icon { font-size: 36px; opacity: 0.2; }
     .output-empty p { font-size: 13px; font-family: var(--mono); }
 
+    /* ── FILE TABS (multi-file code view) ── */
+    .file-tabs {
+      display: none; overflow-x: auto; flex-shrink: 0;
+      border-bottom: 1px solid var(--border); background: var(--surface-2);
+      padding: 0 8px;
+    }
+    .file-tabs::-webkit-scrollbar { height: 3px; }
+    .file-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .file-tab {
+      font-family: var(--mono); font-size: 11px; padding: 8px 12px;
+      color: var(--text-3); cursor: pointer; border: none; border-bottom: 2px solid transparent;
+      background: none; white-space: nowrap; transition: all 0.15s;
+    }
+    .file-tab:hover { color: var(--text-2); }
+    .file-tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+    /* StackBlitz preview container */
+    #sb-container { width: 100%; height: 100%; position: relative; }
+    #sb-container iframe { width: 100% !important; height: 100% !important; border: none; }
+
+    /* Project badge in output tabs */
+    .project-badge {
+      font-family: var(--mono); font-size: 10px; padding: 2px 8px; border-radius: 10px;
+      background: var(--green-dim); color: var(--green); border: 1px solid var(--green-border);
+      display: none; margin-left: 8px;
+    }
+
     /* ── MOBILE ── */
     @media (max-width: 768px) {
       /* Topbar: compact, model selector full width */
@@ -235,6 +262,8 @@
 
       .output-content { overflow: auto; }
       .output-code { padding: 14px; font-size: 11px; }
+      .file-tabs { padding: 0 6px; }
+      .file-tab { font-size: 11px; padding: 10px 10px; }
       .output-empty { gap: 6px; }
       .output-empty-icon { font-size: 28px; }
       .output-empty p { font-size: 12px; }
@@ -253,6 +282,7 @@
       .output-tab { padding: 12px 10px; font-size: 12px; }
     }
   </style>
+  <script src="https://unpkg.com/@stackblitz/sdk@1.11.0/bundles/sdk.umd.js"></script>
 </head>
 <body>
   <div class="app">
@@ -267,6 +297,7 @@
         <span class="topbar-rate" id="rate"><strong>9</strong>/9 left</span>
         <div class="topbar-links">
           <a href="https://zeroknowledge0x.github.io/zk-api/">API</a>
+          <a href="playground.html">React Playground</a>
           <a href="https://zeroknowledge0x.github.io/ZKA-Labs/">ZKA Labs</a>
           <a href="https://github.com/zeroknowledge0x/zk-playground">Source</a>
         </div>
@@ -297,6 +328,7 @@
         <div class="output-tabs">
           <button class="output-tab active" data-tab="preview">Preview</button>
           <button class="output-tab" data-tab="code">Code</button>
+          <span class="project-badge" id="project-badge">React</span>
           <div class="output-actions">
             <button class="output-action" id="dl-btn">&#8595; HTML</button>
             <button class="output-action" id="copy-btn">Copy</button>
@@ -308,6 +340,8 @@
             <p>Build something</p>
           </div>
           <iframe class="output-iframe" id="out-frame" style="display:none;" sandbox="allow-scripts allow-same-origin"></iframe>
+          <div id="sb-container" style="display:none;"></div>
+          <div class="file-tabs" id="file-tabs"></div>
           <pre class="output-code" id="out-code"></pre>
         </div>
       </div>
@@ -380,7 +414,7 @@
         <div class="chat-welcome">
           <div class="chat-welcome-icon">Z</div>
           <h3>What do you want to build?</h3>
-          <p>Describe it below. ZKA generates the code and you see it live.</p>
+          <p>Describe it below. ZKA generates a React project with live preview.</p>
           <div class="chat-welcome-prompts">
             <button class="prompt-chip" onclick="quickPrompt(this)">Landing page</button>
             <button class="prompt-chip" onclick="quickPrompt(this)">Todo app</button>
@@ -426,54 +460,190 @@
     const outFrame = document.getElementById('out-frame');
     const outCode = document.getElementById('out-code');
     const outEmpty = document.getElementById('out-empty');
+    const sbContainer = document.getElementById('sb-container');
+    const fileTabs = document.getElementById('file-tabs');
+    const projectBadge = document.getElementById('project-badge');
     let genCode = '';
+    let genFiles = null; // multi-file project files { path: content }
+    let activeFilePath = '';
+
+    function extractProject(text) {
+      // Try ```json block with { files: {...} }
+      const jsonMatch = text.match(/```json\n([\s\S]*?)```/);
+      if (jsonMatch) {
+        try {
+          const d = JSON.parse(jsonMatch[1].trim());
+          if (d && typeof d.files === 'object' && Object.keys(d.files).length > 0) return d.files;
+        } catch {}
+      }
+      // Try bare JSON object in the text
+      const bareMatch = text.match(/\{\s*"files"\s*:\s*\{[\s\S]*\}\s*\}/);
+      if (bareMatch) {
+        try {
+          const d = JSON.parse(bareMatch[0]);
+          if (d && typeof d.files === 'object' && Object.keys(d.files).length > 0) return d.files;
+        } catch {}
+      }
+      return null;
+    }
 
     document.querySelectorAll('.output-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         document.querySelectorAll('.output-tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
         const w = tab.dataset.tab;
+        const hasContent = genCode || genFiles;
         if (w === 'preview') {
-          outFrame.style.display = genCode ? 'block' : 'none';
+          outFrame.style.display = (!genFiles && genCode) ? 'block' : 'none';
+          sbContainer.style.display = genFiles ? 'block' : 'none';
           outCode.style.display = 'none';
-          outEmpty.style.display = genCode ? 'none' : 'flex';
+          fileTabs.style.display = 'none';
+          outEmpty.style.display = hasContent ? 'none' : 'flex';
         } else {
           outFrame.style.display = 'none';
-          outCode.style.display = genCode ? 'block' : 'none';
-          outEmpty.style.display = genCode ? 'none' : 'flex';
+          sbContainer.style.display = 'none';
+          outEmpty.style.display = hasContent ? 'none' : 'flex';
+          if (genFiles) {
+            fileTabs.style.display = 'flex';
+            outCode.style.display = 'block';
+          } else {
+            fileTabs.style.display = 'none';
+            outCode.style.display = genCode ? 'block' : 'none';
+          }
         }
       });
     });
 
     function setPreview(code) {
       genCode = code;
+      genFiles = null;
       outFrame.removeAttribute('src');
       outFrame.srcdoc = code;
       outFrame.style.display = 'block';
+      sbContainer.style.display = 'none';
       outCode.style.display = 'none';
+      fileTabs.style.display = 'none';
       outEmpty.style.display = 'none';
       outCode.textContent = code;
+      projectBadge.style.display = 'none';
       document.querySelectorAll('.output-tab').forEach(t => t.classList.remove('active'));
       document.querySelector('[data-tab="preview"]').classList.add('active');
     }
 
+    async function setProjectPreview(files) {
+      genFiles = files;
+      genCode = '';
+      projectBadge.style.display = 'inline-block';
+      // Hide legacy elements
+      outFrame.style.display = 'none';
+      outCode.style.display = 'none';
+      fileTabs.style.display = 'none';
+      outEmpty.style.display = 'none';
+      // Clear old StackBlitz embed
+      sbContainer.innerHTML = '';
+      sbContainer.style.display = 'block';
+
+      // Create a fresh target div (SDK replaces it with iframe)
+      const target = document.createElement('div');
+      target.id = 'sb-target';
+      target.style.cssText = 'width:100%;height:100%;';
+      sbContainer.appendChild(target);
+
+      try {
+        if (typeof StackBlitzSDK !== 'undefined') {
+          await StackBlitzSDK.embedProject('sb-target', {
+            title: 'ZKA Project',
+            description: 'Generated by ZKA Playground',
+            template: 'node',
+            files: files
+          }, {
+            openFile: 'src/App.tsx',
+            view: 'preview',
+            height: '100%',
+            theme: 'dark'
+          });
+        } else {
+          throw new Error('StackBlitz SDK not loaded');
+        }
+      } catch (e) {
+        console.warn('StackBlitz embed failed, opening in new tab:', e);
+        sbContainer.style.display = 'none';
+        // Show fallback message in preview area
+        outEmpty.style.display = 'flex';
+        outEmpty.innerHTML = '<div class="output-empty-icon">&#9654;</div><p>Opening in StackBlitz...</p>';
+        if (typeof StackBlitzSDK !== 'undefined') {
+          StackBlitzSDK.openProject({
+            title: 'ZKA Project',
+            template: 'node',
+            files: files
+          }, { newWindow: true });
+        }
+      }
+
+      // Populate code view
+      setProjectCodeView(files);
+      // Switch to preview tab
+      document.querySelectorAll('.output-tab').forEach(t => t.classList.remove('active'));
+      document.querySelector('[data-tab="preview"]').classList.add('active');
+    }
+
+    function setProjectCodeView(files) {
+      fileTabs.innerHTML = '';
+      const paths = Object.keys(files).sort((a, b) => {
+        // Put entry files first
+        if (a === 'index.html') return -1;
+        if (b === 'index.html') return 1;
+        if (a === 'package.json') return -1;
+        if (b === 'package.json') return 1;
+        return a.localeCompare(b);
+      });
+      activeFilePath = paths.find(p => p === 'src/App.tsx') || paths.find(p => p === 'src/main.tsx') || paths[0];
+      paths.forEach(p => {
+        const btn = document.createElement('button');
+        btn.className = 'file-tab' + (p === activeFilePath ? ' active' : '');
+        btn.textContent = p.split('/').pop();
+        btn.title = p;
+        btn.addEventListener('click', () => {
+          fileTabs.querySelectorAll('.file-tab').forEach(t => t.classList.remove('active'));
+          btn.classList.add('active');
+          activeFilePath = p;
+          outCode.textContent = files[p] || '';
+        });
+        fileTabs.appendChild(btn);
+      });
+      outCode.textContent = files[activeFilePath] || '';
+    }
+
     // ── ACTIONS ──
     document.getElementById('dl-btn').addEventListener('click', () => {
-      if (!genCode) return;
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([genCode], { type: 'text/html' }));
-      a.download = 'build.html'; a.click();
+      if (genFiles) {
+        // Download as individual files (create a simple combined view)
+        const combined = Object.entries(genFiles).map(([p, c]) => `// === ${p} ===\n${c}`).join('\n\n');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([combined], { type: 'text/plain' }));
+        a.download = 'zka-project.txt'; a.click();
+      } else if (genCode) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([genCode], { type: 'text/html' }));
+        a.download = 'build.html'; a.click();
+      }
     });
     document.getElementById('copy-btn').addEventListener('click', () => {
-      if (!genCode) return;
-      navigator.clipboard.writeText(genCode);
+      const text = genFiles ? JSON.stringify({ files: genFiles }, null, 2) : genCode;
+      if (!text) return;
+      navigator.clipboard.writeText(text);
       const b = document.getElementById('copy-btn'); b.textContent = '✓';
       setTimeout(() => b.textContent = 'Copy', 1200);
     });
     document.getElementById('clear-btn').addEventListener('click', () => {
       history = []; saveHistory(); showWelcome();
-      genCode = ''; outFrame.style.display = 'none'; outCode.style.display = 'none';
+      genCode = ''; genFiles = null; activeFilePath = '';
+      outFrame.style.display = 'none'; outCode.style.display = 'none';
+      sbContainer.style.display = 'none'; sbContainer.innerHTML = '';
+      fileTabs.style.display = 'none'; fileTabs.innerHTML = '';
+      projectBadge.style.display = 'none';
       outEmpty.style.display = 'flex';
+      outEmpty.innerHTML = '<div class="output-empty-icon">&#9654;</div><p>Build something</p>';
     });
 
     // ── SEND (STREAMING) ──
@@ -506,7 +676,24 @@
       saveHistory();
       addMsg('user', msg);
 
-      const sys = `Generate a SINGLE complete HTML file with inline CSS and JS. Wrap in \`\`\`html block. Dark theme: bg #050505, accent #00ff88. Responsive. Only Google Fonts CDN allowed. Keep compact — no comments, minimal whitespace. MUST include full <body> with visible content. If modifying, return FULL file. No text outside code block.`;
+      const sys = `You are a React code generator. Generate a multi-file React project as a JSON object wrapped in a \`\`\`json code block.
+
+Output format — ONLY this JSON block, nothing else:
+\`\`\`json
+{
+  "files": {
+    "index.html": "<!DOCTYPE html><html><head><title>App</title></head><body><div id=\\"root\\"></div><script type=\\"module\\" src=\\"/src/main.tsx\\"></script></body></html>",
+    "package.json": "{\\"name\\":\\"app\\",\\"private\\":true,\\"type\\":\\"module\\",\\"scripts\\":{\\"dev\\":\\"vite\\",\\"build\\":\\"vite build\\"},\\"dependencies\\":{\\"react\\":\\"^18.3.1\\",\\"react-dom\\":\\"^18.3.1\\"},\\"devDependencies\\":{\\"@types/react\\":\\"^18.3.0\\",\\"@types/react-dom\\":\\"^18.3.0\\",\\"@vitejs/plugin-react\\":\\"^4.3.0\\",\\"typescript\\":\\"^5.4.0\\",\\"vite\\":\\"^5.4.0\\"}}",
+    "vite.config.ts": "import { defineConfig } from 'vite'\\nimport react from '@vitejs/plugin-react'\\nexport default defineConfig({ plugins: [react()] })",
+    "tsconfig.json": "{\\"compilerOptions\\":{\\"target\\":\\"ES2020\\",\\"useDefineForClassFields\\":true,\\"lib\\":[\\"ES2020\\",\\"DOM\\",\\"DOM.Iterable\\"],\\"module\\":\\"ESNext\\",\\"skipLibCheck\\":true,\\"moduleResolution\\":\\"bundler\\",\\"allowImportingTsExtensions\\":true,\\"resolveJsonModule\\":true,\\"isolatedModules\\":true,\\"noEmit\\":true,\\"jsx\\":\\"react-jsx\\",\\"strict\\":true},\\"include\\":[\\"src\\"]}",
+    "src/main.tsx": "import React from 'react'\\nimport ReactDOM from 'react-dom/client'\\nimport App from './App'\\nimport './index.css'\\nReactDOM.createRoot(document.getElementById('root')!).render(<App />)",
+    "src/App.tsx": "export default function App() { return <div>Hello</div> }",
+    "src/index.css": "body { margin: 0; font-family: system-ui; }"
+  }
+}
+\`\`\`
+
+Dark theme: bg #050505, accent #00ff88. Use React 18 with TypeScript. Keep compact. CRITICAL: escape all newlines as \\n and all quotes as \\" in JSON string values. ONLY the JSON code block.`;
 
       const messages = [
         { role: 'system', content: sys },
@@ -533,7 +720,7 @@
         const r = await fetch(BASE + '/v1/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
-          body: JSON.stringify({ model: 'zk-v3z', messages, max_tokens: 2000, stream: true }),
+          body: JSON.stringify({ model: 'zk-v3z', messages, max_tokens: 4000, stream: true }),
           signal: controller.signal
         });
         clearTimeout(timeout);
@@ -571,18 +758,23 @@
                 // Update status with char count
                 setStatus('GENERATING... ' + Math.floor((Date.now() - startTime) / 1000) + 's (' + fullReply.length + ' chars)');
 
-                // Auto-preview: try extracting HTML every 500ms
+                // Auto-preview: try extracting project/HTML every 500ms
                 if (!previewTimer) {
                   previewTimer = setTimeout(() => {
                     previewTimer = null;
                     if (!previewShown) {
-                      const html = extractHTML(fullReply);
-                      if (html && (html.includes('<html') || html.includes('<!DOCTYPE'))) {
-                        setPreview(html);
+                      // Try React project first
+                      const proj = extractProject(fullReply);
+                      if (proj) {
+                        setProjectPreview(proj);
                         previewShown = true;
-                        // Auto-switch to preview tab
-                        document.querySelectorAll('.output-tab').forEach(t => t.classList.remove('active'));
-                        document.querySelector('[data-tab="preview"]').classList.add('active');
+                      } else {
+                        // Fall back to single HTML
+                        const html = extractHTML(fullReply);
+                        if (html && (html.includes('<html') || html.includes('<!DOCTYPE'))) {
+                          setPreview(html);
+                          previewShown = true;
+                        }
                       }
                     }
                   }, 500);
@@ -596,14 +788,20 @@
         history.push({ role: 'ai', content: fullReply }); saveHistory();
 
         // Final preview
-        const html = extractHTML(fullReply);
-        if (html && (html.includes('<html') || html.includes('<!DOCTYPE'))) {
-          setPreview(html.trim());
-          addMsg('ai', '✅ Generated! Preview ready below 👇');
-          document.querySelectorAll('.output-tab').forEach(t => t.classList.remove('active'));
-          document.querySelector('[data-tab="preview"]').classList.add('active');
+        const proj = extractProject(fullReply);
+        if (proj) {
+          setProjectPreview(proj);
+          addMsg('ai', '✅ React project generated! Live preview loading below 👇');
         } else {
-          addMsg('ai', fullReply || '⚠️ No response received.');
+          const html = extractHTML(fullReply);
+          if (html && (html.includes('<html') || html.includes('<!DOCTYPE'))) {
+            setPreview(html.trim());
+            addMsg('ai', '✅ Generated! Preview ready below 👇');
+            document.querySelectorAll('.output-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector('[data-tab="preview"]').classList.add('active');
+          } else {
+            addMsg('ai', fullReply || '⚠️ No response received.');
+          }
         }
 
       } catch (e) {
@@ -624,12 +822,12 @@
 
     function quickPrompt(btn) {
       const prompts = {
-        'Landing page': 'Build a startup landing page with hero section, feature cards, pricing table, and footer. Dark theme with green accents.',
-        'Todo app': 'Build a todo app with add, complete, delete. Persist to localStorage. Clean minimal dark UI.',
-        'Portfolio': 'Build a personal portfolio with hero, project cards with hover effects, and contact section.',
-        'Dashboard': 'Build a stats dashboard with metric cards, a simple bar chart, and activity feed.',
-        'Calculator': 'Build a calculator with dark theme, button grid, and display. Support basic operations.',
-        'Weather app': 'Build a weather app UI with current conditions card, forecast cards, and search bar. Use mock data.'
+        'Landing page': 'Build a startup landing page with hero section, feature cards, pricing table, and footer. Dark theme with green accents. Use React components.',
+        'Todo app': 'Build a todo app with add, complete, delete. Persist to localStorage. Clean minimal dark UI. React with useState.',
+        'Portfolio': 'Build a personal portfolio with hero, project cards with hover effects, and contact section. React components.',
+        'Dashboard': 'Build a stats dashboard with metric cards, a simple bar chart using CSS, and activity feed. React.',
+        'Calculator': 'Build a calculator with dark theme, button grid, and display. Support basic operations. React.',
+        'Weather app': 'Build a weather app UI with current conditions card, forecast cards, and search bar. Use mock data. React.'
       };
       document.getElementById('input').value = prompts[btn.textContent] || btn.textContent;
       send();

@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZKA Playground — React + Vite in Browser</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #050505; --surface: #0a0a0a; --surface-2: #0e0e0e; --surface-3: #141414;
+      --border: rgba(255,255,255,0.06); --border-2: rgba(255,255,255,0.1);
+      --text: #fff; --text-2: #a0a0a0; --text-3: #555;
+      --green: #00ff88; --green-dim: rgba(0,255,136,0.06); --green-border: rgba(0,255,136,0.15);
+      --red: #ff4466; --yellow: #ffd54a; --blue: #00d4ff;
+      --font: 'Inter', -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', 'SF Mono', monospace;
+    }
+    html, body { height: 100%; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); overflow: hidden; -webkit-font-smoothing: antialiased; }
+    ::selection { background: var(--green); color: var(--bg); }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      height: 48px; border-bottom: 1px solid var(--border); display: flex;
+      align-items: center; padding: 0 16px; gap: 12px; flex-shrink: 0;
+      background: rgba(5,5,5,0.95); backdrop-filter: blur(12px);
+    }
+    .topbar-brand { display: flex; align-items: center; gap: 6px; text-decoration: none; }
+    .topbar-logo { font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--green); }
+    .topbar-dot { color: var(--text-3); font-size: 11px; }
+    .topbar-title { font-size: 12px; color: var(--text-2); font-weight: 500; }
+    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .topbar-status { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .status-dot.booting { background: var(--yellow); animation: pulse 1s infinite; }
+    .status-dot.ready { background: var(--green); }
+    .status-dot.error { background: var(--red); }
+    .status-dot.off { background: var(--text-3); }
+    @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+    .topbar-rate { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+    .topbar-rate strong { color: var(--green); }
+    .topbar-links { display: flex; gap: 10px; }
+    .topbar-links a { color: var(--text-3); font-size: 11px; text-decoration: none; font-family: var(--mono); transition: color 0.15s; }
+    .topbar-links a:hover { color: var(--green); }
+
+    /* ── MAIN LAYOUT ── */
+    .main { display: flex; height: calc(100vh - 48px); overflow: hidden; }
+
+    /* ── SIDEBAR: CHAT ── */
+    .sidebar {
+      width: 400px; min-width: 320px; max-width: 50vw;
+      border-right: 1px solid var(--border); display: flex;
+      flex-direction: column; background: var(--surface);
+    }
+    .chat-header {
+      padding: 10px 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    }
+    .chat-header-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+    .chat-header-title { font-size: 12px; font-weight: 600; }
+    .chat-header-right { margin-left: auto; display: flex; gap: 6px; }
+    .btn-sm {
+      font-family: var(--mono); font-size: 10px; padding: 3px 8px;
+      background: none; border: 1px solid var(--border); border-radius: 5px;
+      color: var(--text-3); cursor: pointer; transition: all 0.15s;
+    }
+    .btn-sm:hover { border-color: var(--green-border); color: var(--green); }
+
+    .chat-messages { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .chat-messages::-webkit-scrollbar { width: 4px; }
+    .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .msg { max-width: 92%; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.55; animation: msgIn 0.15s ease; }
+    @keyframes msgIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+    .msg-user { align-self: flex-end; background: var(--green); color: #000; border-bottom-right-radius: 4px; font-weight: 500; }
+    .msg-ai { align-self: flex-start; background: var(--surface-3); border: 1px solid var(--border); border-bottom-left-radius: 4px; max-width: 95%; font-size: 12px; }
+    .msg-ai pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin: 6px 0; overflow-x: auto; font-family: var(--mono); font-size: 10px; color: var(--text-2); }
+    .msg-ai code { background: rgba(0,255,136,0.08); color: var(--green); padding: 1px 4px; border-radius: 3px; font-family: var(--mono); font-size: 11px; }
+    .msg-system { align-self: center; color: var(--text-3); font-size: 11px; font-family: var(--mono); padding: 3px 0; background: none; }
+    .msg-file { align-self: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-family: var(--mono); font-size: 11px; max-width: 95%; }
+    .msg-file-header { color: var(--green); font-weight: 600; margin-bottom: 4px; }
+    .msg-file-list { color: var(--text-2); line-height: 1.8; }
+    .msg-typing { align-self: flex-start; background: var(--surface-3); border: 1px solid var(--border); padding: 8px 14px; border-radius: 12px; border-bottom-left-radius: 4px; }
+    .typing-dots { display: flex; gap: 3px; }
+    .typing-dots span { width: 5px; height: 5px; border-radius: 50%; background: var(--text-3); animation: dot 1.2s infinite; }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dot { 0%,60%,100%{opacity:.3;transform:translateY(0)} 30%{opacity:1;transform:translateY(-3px)} }
+
+    .chat-welcome { text-align: center; padding: 24px 16px; }
+    .chat-welcome-icon { width: 42px; height: 42px; border-radius: 12px; background: var(--green-dim); border: 1px solid var(--green-border); display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--green); }
+    .chat-welcome h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .chat-welcome p { font-size: 12px; color: var(--text-2); line-height: 1.5; margin-bottom: 12px; }
+    .chat-welcome-prompts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+    .prompt-chip {
+      background: var(--surface-3); border: 1px solid var(--border); border-radius: 16px;
+      padding: 5px 12px; font-size: 11px; color: var(--text-2); cursor: pointer;
+      transition: all 0.15s; font-family: var(--mono);
+    }
+    .prompt-chip:hover { border-color: var(--green-border); color: var(--green); background: var(--green-dim); }
+
+    .chat-input-area { padding: 8px 12px; border-top: 1px solid var(--border); flex-shrink: 0; }
+    .chat-input-row { display: flex; gap: 6px; }
+    .chat-input {
+      flex: 1; background: var(--surface-3); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--text);
+      font-family: var(--font); outline: none; resize: none; min-height: 36px; max-height: 80px;
+    }
+    .chat-input:focus { border-color: var(--green-border); }
+    .chat-input::placeholder { color: var(--text-3); }
+    .chat-send {
+      width: 36px; height: 36px; border-radius: 8px; border: none;
+      background: var(--green); color: #000; font-size: 14px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      transition: all 0.15s; font-weight: 700;
+    }
+    .chat-send:hover { box-shadow: 0 0 12px rgba(0,255,136,0.3); }
+    .chat-send:disabled { opacity: 0.3; cursor: default; box-shadow: none; }
+
+    /* ── PREVIEW AREA ── */
+    .preview-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+    .preview-tabs {
+      display: flex; align-items: center; border-bottom: 1px solid var(--border);
+      padding: 0 14px; height: 36px; flex-shrink: 0; background: var(--surface);
+      gap: 0;
+    }
+    .preview-tab {
+      font-family: var(--mono); font-size: 11px; padding: 8px 12px;
+      color: var(--text-3); cursor: pointer; border: none; border-bottom: 2px solid transparent;
+      background: none; transition: all 0.15s;
+    }
+    .preview-tab:hover { color: var(--text-2); }
+    .preview-tab.active { color: var(--green); border-bottom-color: var(--green); }
+    .preview-actions { margin-left: auto; display: flex; gap: 6px; }
+    .preview-action {
+      font-family: var(--mono); font-size: 10px; padding: 3px 8px; border-radius: 5px;
+      background: var(--surface-3); border: 1px solid var(--border); color: var(--text-2);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .preview-action:hover { border-color: var(--green-border); color: var(--green); }
+    .preview-content { flex: 1; position: relative; overflow: hidden; }
+    .preview-iframe { width: 100%; height: 100%; border: none; background: #fff; }
+    .preview-terminal {
+      width: 100%; height: 100%; overflow: auto; padding: 12px;
+      font-family: var(--mono); font-size: 11px; line-height: 1.6;
+      color: var(--text-2); white-space: pre-wrap; word-break: break-all;
+      display: none; background: var(--bg);
+    }
+    .preview-code {
+      width: 100%; height: 100%; overflow: auto; padding: 12px;
+      font-family: var(--mono); font-size: 11px; line-height: 1.6;
+      color: var(--text-2); white-space: pre; display: none;
+      background: var(--bg);
+    }
+    .preview-empty {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; color: var(--text-3); gap: 8px;
+    }
+    .preview-empty-icon { font-size: 32px; opacity: 0.15; }
+    .preview-empty p { font-size: 12px; font-family: var(--mono); }
+    .preview-empty-sub { font-size: 11px; color: var(--text-3); opacity: 0.6; }
+
+    /* Log styling */
+    .log-line { margin: 1px 0; }
+    .log-info { color: var(--blue); }
+    .log-warn { color: var(--yellow); }
+    .log-error { color: var(--red); }
+    .log-success { color: var(--green); }
+    .log-dim { color: var(--text-3); }
+
+    /* ── BOOT OVERLAY ── */
+    .boot-overlay {
+      position: absolute; inset: 0; background: var(--bg);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px; z-index: 10;
+    }
+    .boot-spinner { width: 32px; height: 32px; border: 2px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .boot-text { font-family: var(--mono); font-size: 12px; color: var(--text-2); }
+    .boot-sub { font-family: var(--mono); font-size: 10px; color: var(--text-3); }
+
+    /* ── RESIZE HANDLE ── */
+    .resize-handle {
+      width: 4px; cursor: col-resize; background: transparent;
+      transition: background 0.15s; flex-shrink: 0; position: relative;
+    }
+    .resize-handle:hover, .resize-handle.active { background: var(--green); }
+
+    /* ── MOBILE ── */
+    @media (max-width: 768px) {
+      .main { flex-direction: column; }
+      .sidebar { width: 100% !important; max-width: 100%; height: 50%; min-height: 200px; border-right: none; border-bottom: 2px solid var(--green-border); }
+      .resize-handle { display: none; }
+      .topbar { height: auto; min-height: 44px; padding: 6px 10px; flex-wrap: wrap; }
+      .topbar-title { display: none; }
+      .topbar-dot { display: none; }
+      .topbar-links { display: none; }
+      .msg { max-width: 96%; font-size: 13px; }
+      .chat-input { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" style="display:flex;flex-direction:column;height:100vh;">
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <a href="./" class="topbar-brand">
+        <span class="topbar-logo">ZKA</span>
+        <span class="topbar-dot">/</span>
+        <span class="topbar-title">React Playground</span>
+      </a>
+      <div class="topbar-right">
+        <div class="topbar-status">
+          <span class="status-dot off" id="wc-dot"></span>
+          <span id="wc-status" style="color:var(--text-3)">WebContainer: loading...</span>
+        </div>
+        <span class="topbar-rate" id="rate"><strong>9</strong>/9 left</span>
+        <div class="topbar-links">
+          <a href="./">Simple Mode</a>
+          <a href="https://github.com/zeroknowledge0x/zk-playground">Source</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+      <!-- CHAT SIDEBAR -->
+      <div class="sidebar" id="sidebar">
+        <div class="chat-header">
+          <div class="chat-header-dot"></div>
+          <div class="chat-header-title">Describe your app</div>
+          <div class="chat-header-right">
+            <button class="btn-sm" id="clear-btn">Clear</button>
+          </div>
+        </div>
+        <div class="chat-messages" id="messages"></div>
+        <div class="chat-input-area">
+          <div class="chat-input-row">
+            <textarea class="chat-input" id="input" placeholder="e.g. Build a todo app with React..." rows="1"></textarea>
+            <button class="chat-send" id="send-btn">&#8593;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESIZE HANDLE -->
+      <div class="resize-handle" id="resize-handle"></div>
+
+      <!-- PREVIEW -->
+      <div class="preview-area" id="preview-area">
+        <div class="preview-tabs">
+          <button class="preview-tab active" data-tab="preview">Preview</button>
+          <button class="preview-tab" data-tab="terminal">Terminal</button>
+          <button class="preview-tab" data-tab="files">Files</button>
+          <div class="preview-actions">
+            <button class="preview-action" id="restart-btn">&#8635; Restart</button>
+          </div>
+        </div>
+        <div class="preview-content" id="preview-content">
+          <div class="preview-empty" id="preview-empty">
+            <div class="preview-empty-icon">&#9654;</div>
+            <p>Describe an app to get started</p>
+            <p class="preview-empty-sub">WebContainers runs Vite+React entirely in your browser</p>
+          </div>
+          <iframe class="preview-iframe" id="preview-frame" style="display:none;" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
+          <div class="preview-terminal" id="preview-terminal"></div>
+          <pre class="preview-code" id="preview-files"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load WebContainers from CDN -->
+  <script type="module">
+    // ── CONFIG ──
+    const BASE = 'https://api.zk0x.app';
+    const API_KEY = 'zk-tested';
+
+    // ── STATE ──
+    let wcInstance = null;
+    let wcReady = false;
+    let busy = false;
+    let history = [];
+    let generatedFiles = null;
+    let serverPort = null;
+
+    // ── DOM ──
+    const msgBox = document.getElementById('messages');
+    const inputEl = document.getElementById('input');
+    const sendBtn = document.getElementById('send-btn');
+    const previewFrame = document.getElementById('preview-frame');
+    const previewTerminal = document.getElementById('preview-terminal');
+    const previewFiles = document.getElementById('preview-files');
+    const previewEmpty = document.getElementById('preview-empty');
+    const wcDot = document.getElementById('wc-dot');
+    const wcStatusEl = document.getElementById('wc-status');
+
+    // ── RATE LIMIT ──
+    const RL_KEY = 'zka-rpg-rl';
+    const RL_MAX = 9;
+    const RL_WINDOW = 3 * 60 * 60 * 1000;
+    let userIP = '';
+
+    async function detectIP() {
+      try { const r = await fetch('https://api.ipify.org?format=json'); const d = await r.json(); userIP = d.ip || ''; }
+      catch { userIP = 'unknown'; }
+    }
+
+    function getRL() {
+      try {
+        const all = JSON.parse(localStorage.getItem(RL_KEY)) || {};
+        const key = userIP || 'unknown';
+        const entry = all[key];
+        if (!entry || Date.now() > entry.resetAt) return { count: 0, resetAt: Date.now() + RL_WINDOW };
+        return entry;
+      } catch { return { count: 0, resetAt: Date.now() + RL_WINDOW }; }
+    }
+
+    function useRL() {
+      const d = getRL();
+      if (d.count >= RL_MAX) return false;
+      d.count++;
+      const all = JSON.parse(localStorage.getItem(RL_KEY)) || {};
+      all[userIP || 'unknown'] = d;
+      localStorage.setItem(RL_KEY, JSON.stringify(all));
+      updateRateUI();
+      return true;
+    }
+
+    function updateRateUI() {
+      const d = getRL();
+      const left = RL_MAX - d.count;
+      document.getElementById('rate').innerHTML = '<strong' + (left <= 2 ? ' style="color:#f44"' : '') + '>' + left + '</strong>/' + RL_MAX + ' left';
+    }
+
+    // ── CROSS-ORIGIN ISOLATION (Service Worker) ──
+    async function ensureCrossOriginIsolated() {
+      if (crossOriginIsolated) return true;
+
+      // Register service worker to inject COOP/COEP headers
+      if ('serviceWorker' in navigator) {
+        try {
+          const reg = await navigator.serviceWorker.register('./coi-serviceworker.js');
+          await navigator.serviceWorker.ready;
+
+          // If the page isn't cross-origin isolated yet, we need to reload
+          if (!crossOriginIsolated) {
+            wcStatusEl.textContent = 'WebContainer: reloading for SharedArrayBuffer...';
+            // Give the SW a moment to activate
+            await new Promise(r => setTimeout(r, 500));
+            window.location.reload();
+            return false; // won't reach here
+          }
+        } catch (e) {
+          console.error('Service worker registration failed:', e);
+          return false;
+        }
+      }
+      return crossOriginIsolated;
+    }
+
+    // ── BOOT WEBCONTAINER ──
+    async function bootWebContainer() {
+      wcDot.className = 'status-dot booting';
+      wcStatusEl.textContent = 'WebContainer: booting...';
+
+      try {
+        const { WebContainer } = await import('https://esm.sh/@webcontainer/api@1.6.4');
+        wcInstance = await WebContainer.boot({ coep: 'credentialless' });
+        wcReady = true;
+        wcDot.className = 'status-dot ready';
+        wcStatusEl.textContent = 'WebContainer: ready';
+        logTerminal('✓ WebContainer booted successfully', 'success');
+        return true;
+      } catch (e) {
+        console.error('WebContainer boot failed:', e);
+        wcDot.className = 'status-dot error';
+        wcStatusEl.textContent = 'WebContainer: error — ' + e.message;
+        logTerminal('✗ WebContainer boot failed: ' + e.message, 'error');
+        logTerminal('Make sure your browser supports SharedArrayBuffer', 'warn');
+        return false;
+      }
+    }
+
+    // ── TERMINAL LOG ──
+    function logTerminal(text, type = '') {
+      const line = document.createElement('div');
+      line.className = 'log-line' + (type ? ' log-' + type : '');
+      line.textContent = text;
+      previewTerminal.appendChild(line);
+      previewTerminal.scrollTop = previewTerminal.scrollHeight;
+    }
+
+    // ── MOUNT AND RUN PROJECT ──
+    async function mountAndRun(files) {
+      if (!wcInstance) {
+        logTerminal('✗ WebContainer not ready', 'error');
+        return;
+      }
+
+      // Switch to terminal tab
+      switchTab('terminal');
+      previewTerminal.innerHTML = '';
+      logTerminal('── Mounting project files ──', 'info');
+
+      // Build the file tree for WebContainers
+      const fileTree = {};
+      for (const [path, content] of Object.entries(files)) {
+        const parts = path.split('/');
+        let current = fileTree;
+        for (let i = 0; i < parts.length - 1; i++) {
+          if (!current[parts[i]]) current[parts[i]] = { directory: {} };
+          current = current[parts[i]].directory;
+        }
+        current[parts[parts.length - 1]] = { file: { contents: content } };
+        logTerminal('  + ' + path, 'dim');
+      }
+
+      try {
+        // Mount files
+        await wcInstance.mount(fileTree);
+        logTerminal('✓ Files mounted', 'success');
+        logTerminal('', '');
+        logTerminal('── Installing dependencies ──', 'info');
+
+        // npm install
+        const installProc = await wcInstance.spawn('npm', ['install']);
+        installProc.output.pipeTo(new WritableStream({
+          write(data) { logTerminal(data, ''); }
+        }));
+        const installExit = await installProc.exit;
+
+        if (installExit !== 0) {
+          logTerminal('✗ npm install failed (exit ' + installExit + ')', 'error');
+          return;
+        }
+        logTerminal('✓ Dependencies installed', 'success');
+        logTerminal('', '');
+        logTerminal('── Starting dev server ──', 'info');
+
+        // Listen for server-ready
+        wcInstance.on('server-ready', (port, url) => {
+          serverPort = port;
+          logTerminal('✓ Dev server ready on port ' + port, 'success');
+          logTerminal('  URL: ' + url, 'dim');
+
+          // Show preview
+          previewFrame.src = url;
+          previewFrame.style.display = 'block';
+          previewEmpty.style.display = 'none';
+          switchTab('preview');
+        });
+
+        // Start vite dev server
+        const devProc = await wcInstance.spawn('npm', ['run', 'dev']);
+        devProc.output.pipeTo(new WritableStream({
+          write(data) { logTerminal(data, ''); }
+        }));
+
+      } catch (e) {
+        logTerminal('✗ Error: ' + e.message, 'error');
+      }
+    }
+
+    // ── PARSE AI RESPONSE INTO FILES ──
+    function normalizeFiles(raw) {
+      const files = {};
+      for (const [path, content] of Object.entries(raw)) {
+        // package.json might be an object — stringify it
+        if (path === 'package.json' && typeof content === 'object') {
+          files[path] = JSON.stringify(content, null, 2);
+        } else if (typeof content === 'string') {
+          files[path] = content;
+        } else {
+          files[path] = String(content);
+        }
+      }
+      return files;
+    }
+
+    function parseFiles(text) {
+      // Try JSON format first: { "files": { "path": "content", ... } }
+      // Also try without the "files" wrapper
+      const jsonMatch = text.match(/```json\s*\n([\s\S]*?)```/);
+      if (jsonMatch) {
+        try {
+          const data = JSON.parse(jsonMatch[1]);
+          if (data.files && typeof data.files === 'object') return normalizeFiles(data.files);
+          // Maybe it's directly the files object
+          if (typeof data === 'object' && !Array.isArray(data)) {
+            return normalizeFiles(data);
+          }
+        } catch {}
+      }
+
+      // Try delimiter format: ///FILE: path ... ///END
+      const fileRegex = /\/\/\/FILE:\s*(.+?)\n([\s\S]*?)\/\/\/END/g;
+      const files = {};
+      let match;
+      while ((match = fileRegex.exec(text)) !== null) {
+        files[match[1].trim()] = match[2].trim();
+      }
+      if (Object.keys(files).length > 0) return files;
+
+      // Try marker format: ===FILE: path=== ... ===END===
+      const markerRegex = /===FILE:\s*(.+?)===\n([\s\S]*?)===END===/g;
+      while ((match = markerRegex.exec(text)) !== null) {
+        files[match[1].trim()] = match[2].trim();
+      }
+      if (Object.keys(files).length > 0) return files;
+
+      return null;
+    }
+
+    // ── DEFAULT PROJECT TEMPLATE (fallback) ──
+    function getDefaultProject(description) {
+      return {
+        "package.json": JSON.stringify({
+          name: "zk-playground-app",
+          private: true,
+          version: "0.0.0",
+          type: "module",
+          scripts: { dev: "vite", build: "vite build", preview: "vite preview" },
+          dependencies: { react: "^18.3.1", "react-dom": "^18.3.1" },
+          devDependencies: { "@types/react": "^18.3.3", "@types/react-dom": "^18.3.0", "@vitejs/plugin-react": "^4.3.1", typescript: "^5.5.3", vite: "^5.4.2" }
+        }, null, 2),
+        "index.html": `<!DOCTYPE html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>ZK App</title></head>
+  <body><div id="root"></div><script type="module" src="/src/main.tsx"><` + `/script></body>
+</html>`,
+        "vite.config.ts": `import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+export default defineConfig({ plugins: [react()] })`,
+        "tsconfig.json": JSON.stringify({
+          compilerOptions: { target: "ES2020", useDefineForClassFields: true, lib: ["ES2020", "DOM", "DOM.Iterable"], module: "ESNext", skipLibCheck: true, moduleResolution: "bundler", allowImportingTsExtensions: true, resolveJsonModule: true, isolatedModules: true, noEmit: true, jsx: "react-jsx", strict: true, noUnusedLocals: false, noUnusedParameters: false },
+          include: ["src"]
+        }, null, 2),
+        "src/main.tsx": `import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App'
+import './index.css'
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode><App /></React.StrictMode>
+)`,
+        "src/App.tsx": `import { useState } from 'react'
+
+export default function App() {
+  const [count, setCount] = useState(0)
+  return (
+    <div style={{ minHeight:'100vh', background:'#050505', color:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontFamily:'system-ui' }}>
+      <h1 style={{ fontSize:'2.5rem', marginBottom:'1rem', color:'#00ff88' }}>ZK Playground</h1>
+      <p style={{ color:'#888', marginBottom:'2rem' }}>Edit src/App.tsx and save to see changes</p>
+      <button onClick={() => setCount(c => c+1)} style={{ padding:'10px 24px', background:'#00ff88', color:'#000', border:'none', borderRadius:'8px', fontSize:'16px', fontWeight:600, cursor:'pointer' }}>
+        Count: {count}
+      </button>
+    </div>
+  )
+}`,
+        "src/index.css": `* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #050505; }`
+      };
+    }
+
+    // ── CHAT UI ──
+    function showWelcome() {
+      msgBox.innerHTML = `
+        <div class="chat-welcome">
+          <div class="chat-welcome-icon">Z</div>
+          <h3>React + Vite in your browser</h3>
+          <p>Describe an app. AI generates the project files. WebContainers runs Vite entirely client-side.</p>
+          <div class="chat-welcome-prompts">
+            <button class="prompt-chip" onclick="quickPrompt(this)">Todo app</button>
+            <button class="prompt-chip" onclick="quickPrompt(this)">Dashboard</button>
+            <button class="prompt-chip" onclick="quickPrompt(this)">Timer</button>
+            <button class="prompt-chip" onclick="quickPrompt(this)">Color picker</button>
+            <button class="prompt-chip" onclick="quickPrompt(this)">Markdown editor</button>
+          </div>
+        </div>`;
+    }
+
+    function addMsg(role, text) {
+      const welcome = msgBox.querySelector('.chat-welcome');
+      if (welcome) welcome.remove();
+      const div = document.createElement('div');
+      if (role === 'user') { div.className = 'msg msg-user'; div.textContent = text; }
+      else if (role === 'system') { div.className = 'msg msg-system'; div.textContent = text; }
+      else { div.className = 'msg msg-ai'; div.innerHTML = fmtAI(text); }
+      msgBox.appendChild(div);
+      msgBox.scrollTop = msgBox.scrollHeight;
+      return div;
+    }
+
+    function addFileMsg(files) {
+      const welcome = msgBox.querySelector('.chat-welcome');
+      if (welcome) welcome.remove();
+      const div = document.createElement('div');
+      div.className = 'msg-file';
+      const fileList = Object.keys(files).map(f => '  ' + f).join('\n');
+      div.innerHTML = `<div class="msg-file-header">&#128193; Generated files:</div><div class="msg-file-list">${Object.keys(files).map(f => '&#8226; ' + f).join('<br>')}</div>`;
+      msgBox.appendChild(div);
+      msgBox.scrollTop = msgBox.scrollHeight;
+    }
+
+    function fmtAI(t) {
+      return t.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+              .replace(/`([^`]+)`/g, '<code>$1</code>')
+              .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+              .replace(/\n/g, '<br>');
+    }
+
+    function showTyping() {
+      const div = document.createElement('div');
+      div.className = 'msg-typing';
+      div.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+      msgBox.appendChild(div);
+      msgBox.scrollTop = msgBox.scrollHeight;
+      return div;
+    }
+
+    // ── TABS ──
+    function switchTab(name) {
+      document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`[data-tab="${name}"]`).classList.add('active');
+      previewFrame.style.display = name === 'preview' && previewFrame.src ? 'block' : 'none';
+      previewTerminal.style.display = name === 'terminal' ? 'block' : 'none';
+      previewFiles.style.display = name === 'files' ? 'block' : 'none';
+      previewEmpty.style.display = (name === 'preview' && !previewFrame.src) ? 'flex' : 'none';
+    }
+
+    document.querySelectorAll('.preview-tab').forEach(tab => {
+      tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    });
+
+    // ── RESIZE HANDLE ──
+    const sidebar = document.getElementById('sidebar');
+    const handle = document.getElementById('resize-handle');
+    let resizing = false;
+
+    handle.addEventListener('mousedown', (e) => {
+      resizing = true;
+      handle.classList.add('active');
+      document.addEventListener('mousemove', onResize);
+      document.addEventListener('mouseup', () => { resizing = false; handle.classList.remove('active'); document.removeEventListener('mousemove', onResize); }, { once: true });
+    });
+
+    function onResize(e) {
+      if (!resizing) return;
+      const newWidth = Math.max(300, Math.min(window.innerWidth * 0.6, e.clientX));
+      sidebar.style.width = newWidth + 'px';
+    }
+
+    // ── SEND MESSAGE ──
+    async function send() {
+      const msg = inputEl.value.trim();
+      if (!msg || busy) return;
+      if (!wcReady) { addMsg('system', 'WebContainer not ready yet. Please wait...'); return; }
+      busy = true;
+      inputEl.value = ''; inputEl.style.height = 'auto';
+
+      if (!useRL()) { addMsg('system', 'Rate limit reached. Try again later.'); busy = false; return; }
+
+      history.push({ role: 'user', content: msg });
+      addMsg('user', msg);
+
+      const sys = `You are a React + Vite project generator. Generate a complete multi-file project.
+
+OUTPUT FORMAT: Use this exact format for each file:
+
+\`\`\`json
+{
+  "files": {
+    "package.json": "...",
+    "index.html": "...",
+    "vite.config.ts": "...",
+    "tsconfig.json": "...",
+    "src/main.tsx": "...",
+    "src/App.tsx": "...",
+    "src/index.css": "..."
+  }
+}
+\`\`\`
+
+RULES:
+- Output ONLY a single JSON code block. No other text.
+- package.json must include: react ^18, react-dom ^18, vite ^5, @vitejs/plugin-react ^4, typescript ^5
+- index.html must have <div id="root"> and <script type="module" src="/src/main.tsx">
+- vite.config.ts must use @vitejs/plugin-react
+- src/main.tsx must render App into #root
+- Use TypeScript (.tsx/.ts)
+- Dark theme: bg #050505, accent #00ff88
+- Inline styles or src/index.css (no external CSS libraries)
+- Only use react, react-dom as dependencies (no other npm packages)
+- Keep the project simple but functional
+- Make it visually appealing with the dark theme`;
+
+      const messages = [
+        { role: 'system', content: sys },
+        ...history.map(m => ({ role: m.role === 'ai' ? 'assistant' : m.role, content: m.content }))
+      ];
+
+      const typing = showTyping();
+      sendBtn.disabled = true;
+
+      const startTime = Date.now();
+      const timer = setInterval(() => {
+        const sec = Math.floor((Date.now() - startTime) / 1000);
+        wcStatusEl.textContent = 'Generating... ' + sec + 's';
+      }, 1000);
+
+      let fullReply = '';
+
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 120000);
+        const r = await fetch(BASE + '/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
+          body: JSON.stringify({ model: 'zk-v3z', messages, max_tokens: 4000, stream: true }),
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          typing.remove();
+          addMsg('ai', '&#9888; ' + (err.error?.message || 'Request failed (' + r.status + ')'));
+          clearInterval(timer); busy = false; wcStatusEl.textContent = 'WebContainer: ready';
+          sendBtn.disabled = false;
+          return;
+        }
+
+        const reader = r.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+            try {
+              const chunk = JSON.parse(data);
+              const delta = chunk.choices?.[0]?.delta?.content || '';
+              if (delta) {
+                fullReply += delta;
+                const sec = Math.floor((Date.now() - startTime) / 1000);
+                wcStatusEl.textContent = 'Generating... ' + sec + 's (' + fullReply.length + ' chars)';
+              }
+            } catch {}
+          }
+        }
+
+        typing.remove();
+        history.push({ role: 'ai', content: fullReply });
+
+        // Parse files from response
+        const files = parseFiles(fullReply);
+        if (files && Object.keys(files).length > 0) {
+          generatedFiles = files;
+          addFileMsg(files);
+          addMsg('system', '&#128640; Mounting project and starting dev server...');
+          await mountAndRun(files);
+        } else {
+          // Fallback: try to use default template
+          addMsg('ai', fullReply || 'No response received. Using default template...');
+          const defaultFiles = getDefaultProject(msg);
+          generatedFiles = defaultFiles;
+          addMsg('system', 'Using default React template. Describe your app more specifically for custom code.');
+          addFileMsg(defaultFiles);
+          await mountAndRun(defaultFiles);
+        }
+
+      } catch (e) {
+        typing.remove();
+        clearInterval(timer);
+        if (e.name === 'AbortError') {
+          addMsg('ai', '&#9201; Request timed out. Try a simpler prompt.');
+        } else {
+          addMsg('ai', '&#9888; Error: ' + e.message);
+        }
+      }
+
+      clearInterval(timer);
+      busy = false;
+      wcStatusEl.textContent = 'WebContainer: ready';
+      sendBtn.disabled = false;
+    }
+
+    // ── QUICK PROMPTS ──
+    window.quickPrompt = function(btn) {
+      const prompts = {
+        'Todo app': 'Build a todo app with add, complete, delete functionality. Use React useState, clean dark UI with green accents.',
+        'Dashboard': 'Build a stats dashboard with metric cards showing mock data, a simple bar chart using CSS, and a recent activity list.',
+        'Timer': 'Build a countdown timer with start/pause/reset. Show minutes:seconds display with a circular progress indicator using CSS.',
+        'Color picker': 'Build a color picker tool with RGB sliders, hex display, color preview, and copy-to-clipboard functionality.',
+        'Markdown editor': 'Build a split-pane markdown editor with live preview. Support headings, bold, italic, lists, and code blocks.'
+      };
+      inputEl.value = prompts[btn.textContent] || btn.textContent;
+      send();
+    };
+
+    // ── ACTIONS ──
+    document.getElementById('clear-btn').addEventListener('click', () => {
+      history = []; showWelcome();
+      generatedFiles = null;
+      previewFrame.style.display = 'none'; previewFrame.removeAttribute('src');
+      previewTerminal.innerHTML = ''; previewFiles.textContent = '';
+      previewEmpty.style.display = 'flex';
+      switchTab('preview');
+    });
+
+    document.getElementById('restart-btn').addEventListener('click', async () => {
+      if (generatedFiles && wcReady) {
+        previewFrame.removeAttribute('src');
+        previewFrame.style.display = 'none';
+        previewEmpty.style.display = 'flex';
+        await mountAndRun(generatedFiles);
+      }
+    });
+
+    inputEl.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });
+    inputEl.addEventListener('input', () => { inputEl.style.height = 'auto'; inputEl.style.height = Math.min(inputEl.scrollHeight, 80) + 'px'; });
+    sendBtn.addEventListener('click', send);
+
+    // ── INIT ──
+    async function init() {
+      await detectIP();
+      updateRateUI();
+      showWelcome();
+
+      // Check cross-origin isolation
+      const coiOk = await ensureCrossOriginIsolated();
+      if (!coiOk && !crossOriginIsolated) {
+        wcDot.className = 'status-dot error';
+        wcStatusEl.textContent = 'WebContainer: SharedArrayBuffer unavailable';
+        addMsg('system', '&#9888; SharedArrayBuffer not available. The service worker should reload the page automatically. If not, try refreshing.');
+        return;
+      }
+
+      // Boot WebContainer
+      await bootWebContainer();
+    }
+
+    init();
+  </script>
+</body>
+</html>

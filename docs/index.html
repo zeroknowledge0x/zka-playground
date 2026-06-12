@@ -476,14 +476,28 @@
       outEmpty.style.display = 'flex';
     });
 
-    // ── SEND ──
+    // ── SEND (STREAMING) ──
     let busy = false;
+
+    function extractHTML(text) {
+      const fullMatch = text.match(/```html\n([\s\S]*?)```/);
+      if (fullMatch) return fullMatch[1];
+      const partialMatch = text.match(/```html\n([\s\S]*)/);
+      if (partialMatch) {
+        let h = partialMatch[1];
+        const last = h.lastIndexOf("```");
+        if (last > 0) h = h.substring(0, last);
+        return h;
+      }
+      if (text.includes("<!DOCTYPE") || text.includes("<html")) return text;
+      return null;
+    }
 
     async function send() {
       const input = document.getElementById('input');
       const msg = input.value.trim();
       if (!msg || busy) return;
-      busy = true; // Lock IMMEDIATELY to prevent double-send
+      busy = true;
       input.value = ''; input.style.height = 'auto';
 
       if (!useRL()) { addMsg('system', 'Rate limit. Try again later.'); busy = false; return; }
@@ -499,89 +513,111 @@
         ...history.map(m => ({ role: m.role === 'ai' ? 'assistant' : m.role, content: m.content }))
       ];
 
-      setStatus('GENERATING...');
+      setStatus('CONNECTING...');
       const typing = showTyping();
       document.getElementById('send-btn').disabled = true;
 
-      // Show elapsed time
       const startTime = Date.now();
       const timer = setInterval(() => {
         const sec = Math.floor((Date.now() - startTime) / 1000);
         setStatus('GENERATING... ' + sec + 's');
       }, 1000);
 
+      let fullReply = '';
+      let previewShown = false;
+      let previewTimer = null;
+
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 120000); // 2 min timeout
+        const timeout = setTimeout(() => controller.abort(), 120000);
         const r = await fetch(BASE + '/v1/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
-          body: JSON.stringify({ model: 'zk-pg', messages, max_tokens: 2000 }),
+          body: JSON.stringify({ model: 'zk-v3z', messages, max_tokens: 2000, stream: true }),
           signal: controller.signal
         });
         clearTimeout(timeout);
-        const d = await r.json();
-        typing.remove();
-        if (d.error) {
-          const msg = d.error.message || 'Something went wrong. Please try again later.';
-          addMsg('ai', '⚠️ ' + msg);
-        } else if (d.choices && d.choices[0]) {
-          const reply = d.choices[0].message.content;
-          const finish = d.choices[0].finish_reason;
-          history.push({ role: 'ai', content: reply }); saveHistory();
-          // Extract HTML — handle both complete and truncated responses
-          let html = null;
-          const fullMatch = reply.match(/```html\n([\s\S]*?)```/);
-          if (fullMatch) {
-            html = fullMatch[1];
-          } else {
-            // Truncated: no closing ```, extract everything after ```html\n
-            const partialMatch = reply.match(/```html\n([\s\S]*)/);
-            if (partialMatch) {
-              html = partialMatch[1];
-              // Clean up any trailing ``` or text after code
-              const lastFence = html.lastIndexOf("```");
-              if (lastFence > 0) html = html.substring(0, lastFence);
-            } else if (reply.includes("<!DOCTYPE") || reply.includes("<html")) {
-              // Raw HTML without code block
-              html = reply;
-            }
-          }
-          if (html) {
-            html = html.trim();
-            // Verify it looks like valid HTML
-            if (html.includes("<html") || html.includes("<!DOCTYPE")) {
-              setPreview(html);
-              // Show friendly message with action buttons
-              let friendly = '✅ Generated! Preview ready below 👇';
-              if (finish === "length") {
-                friendly += '\n⚠️ Partial — response was truncated.';
-              }
-              addMsg('ai', friendly);
-              // Auto-switch to preview tab
-              document.querySelectorAll('.output-tab').forEach(t => t.classList.remove('active'));
-              document.querySelector('[data-tab="preview"]').classList.add('active');
-            } else {
-              addMsg('ai', '⚠️ Generated code doesn\'t look like valid HTML. Try again.');
-            }
-          } else {
-            // No HTML found — show the raw reply as fallback
-            addMsg('ai', reply);
-          }
-        } else {
-          addMsg('ai', '⚠️ Unexpected response. Please try again.');
+
+        if (!r.ok) {
+          const err = await r.json();
+          typing.remove();
+          addMsg('ai', '⚠️ ' + (err.error?.message || 'Request failed'));
+          clearInterval(timer); busy = false; setStatus('IDLE');
+          document.getElementById('send-btn').disabled = false;
+          return;
         }
+
+        const reader = r.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // keep incomplete line
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+            try {
+              const chunk = JSON.parse(data);
+              const delta = chunk.choices?.[0]?.delta?.content || '';
+              if (delta) {
+                fullReply += delta;
+                // Update status with char count
+                setStatus('GENERATING... ' + Math.floor((Date.now() - startTime) / 1000) + 's (' + fullReply.length + ' chars)');
+
+                // Auto-preview: try extracting HTML every 500ms
+                if (!previewTimer) {
+                  previewTimer = setTimeout(() => {
+                    previewTimer = null;
+                    if (!previewShown) {
+                      const html = extractHTML(fullReply);
+                      if (html && (html.includes('<html') || html.includes('<!DOCTYPE'))) {
+                        setPreview(html);
+                        previewShown = true;
+                        // Auto-switch to preview tab
+                        document.querySelectorAll('.output-tab').forEach(t => t.classList.remove('active'));
+                        document.querySelector('[data-tab="preview"]').classList.add('active');
+                      }
+                    }
+                  }, 500);
+                }
+              }
+            } catch {}
+          }
+        }
+
+        typing.remove();
+        history.push({ role: 'ai', content: fullReply }); saveHistory();
+
+        // Final preview
+        const html = extractHTML(fullReply);
+        if (html && (html.includes('<html') || html.includes('<!DOCTYPE'))) {
+          setPreview(html.trim());
+          addMsg('ai', '✅ Generated! Preview ready below 👇');
+          document.querySelectorAll('.output-tab').forEach(t => t.classList.remove('active'));
+          document.querySelector('[data-tab="preview"]').classList.add('active');
+        } else {
+          addMsg('ai', fullReply || '⚠️ No response received.');
+        }
+
       } catch (e) {
         typing.remove();
         clearInterval(timer);
         if (e.name === 'AbortError') {
-          addMsg('ai', '⏱️ Request timed out. The AI took too long to respond. Try a simpler prompt or try again later.');
+          addMsg('ai', '⏱️ Request timed out. Try a simpler prompt or try again later.');
         } else {
           addMsg('ai', '⚠️ Network error. Please check your connection and try again.');
         }
       }
 
       clearInterval(timer);
+      if (previewTimer) clearTimeout(previewTimer);
       busy = false; setStatus('IDLE');
       document.getElementById('send-btn').disabled = false;
     }

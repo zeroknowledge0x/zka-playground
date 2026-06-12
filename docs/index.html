@@ -310,7 +310,7 @@ JSON format:
 {"files":{"index.html":"<!DOCTYPE html>...","style.css":"body{...}","app.js":"// code..."}}
 
 Rules:
-- index.html must link to style.css and app.js using relative paths (<link rel="stylesheet" href="style.css"> and <script src="app.js"><\/script>)
+- index.html must link to style.css and app.js using relative paths using link and script tags
 - Use modern CSS (flexbox, grid, variables). Make it responsive and polished.
 - Use vanilla JS (no frameworks). Modern ES6+.
 - Include realistic sample data matching the theme.
@@ -447,11 +447,11 @@ function fallbackSingleFile(text) {
 
       if (styleMatch) {
         files['style.css'] = styleMatch[1].trim();
-        cleanHtml = cleanHtml.replace(styleMatch[0], '<link rel="stylesheet" href="style.css">');
+        cleanHtml = cleanHtml.replace(styleMatch[0], '<' + 'link rel="stylesheet" href="style.css">');
       }
       if (scriptMatch && !scriptMatch[0].includes('src=')) {
         files['app.js'] = scriptMatch[1].trim();
-        cleanHtml = cleanHtml.replace(scriptMatch[0], '<script src="app.js"><\/script>');
+        cleanHtml = cleanHtml.replace(scriptMatch[0], '<' + 'script src="app.js"><' + '/script>');
       }
       files['index.html'] = cleanHtml;
       return files;
@@ -514,15 +514,15 @@ function renderPreviewFromFiles(files) {
 
   // Inline CSS files
   if (files['style.css'] && !combined.includes('<style>')) {
-    combined = combined.replace('</head>', `<style>${files['style.css']}</style></head>`);
+    combined = combined.replace('</head>', '<' + `style>${files['style.css']}</` + 'style></head>');
   }
 
   // Inline JS files
   for (const [path, content] of Object.entries(files)) {
     if (path.endsWith('.js') && path !== 'index.html') {
-      const scriptTag = `<script src="${path}"><\/script>`;
+      const scriptTag = '<' + `script src="${path}">` + '<' + '/script>';
       if (combined.includes(scriptTag)) {
-        combined = combined.replace(scriptTag, `<script>${content}<\/script>`);
+        combined = combined.replace(scriptTag, '<' + `script>${content}<` + '/script>');
       }
     }
   }

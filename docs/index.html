@@ -239,7 +239,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 </div>
 
 <script>
-const PROXY = 'https://proxy.zka-labs.workers.dev';
+const PROXY = 'https://api.zk0x.app';
+const API_KEY = 'zk-playground-public-2024';
 const LS_KEY = 'zka_pg_history';
 
 let busy = false;
@@ -344,7 +345,7 @@ RULES:
   try {
     const res = await fetch(PROXY + '/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
       body: JSON.stringify({
         model: model,
         messages: [

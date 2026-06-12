@@ -404,17 +404,7 @@
       saveHistory();
       addMsg('user', msg);
 
-      const sys = `You are a code generator. When the user describes something to build, output a SINGLE complete HTML file with inline CSS and JS.
-Rules:
-- Wrap code in a single \`\`\`html block
-- Self-contained (only Google Fonts CDN allowed externally)
-- Dark theme: bg #050505, accent #00ff88
-- Responsive, production-quality
-- All CSS in <style>, all JS in <script>
-- Keep code compact: use CSS shorthand, minimize whitespace, avoid comments
-- MUST include complete <body> with visible content
-- If modifying previous output, return the FULL updated file
-- No explanation outside the code block`;
+      const sys = `Generate a SINGLE complete HTML file with inline CSS and JS. Wrap in \`\`\`html block. Dark theme: bg #050505, accent #00ff88. Responsive. Only Google Fonts CDN allowed. Keep compact — no comments, minimal whitespace. MUST include full <body> with visible content. If modifying, return FULL file. No text outside code block.`;
 
       const messages = [
         { role: 'system', content: sys },
@@ -438,7 +428,7 @@ Rules:
         const r = await fetch(BASE + '/v1/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
-          body: JSON.stringify({ model: document.getElementById('model-sel').value, messages, max_tokens: 3000 }),
+          body: JSON.stringify({ model: document.getElementById('model-sel').value, messages, max_tokens: 2000 }),
           signal: controller.signal
         });
         clearTimeout(timeout);
@@ -451,7 +441,6 @@ Rules:
           const reply = d.choices[0].message.content;
           const finish = d.choices[0].finish_reason;
           history.push({ role: 'ai', content: reply }); saveHistory();
-          addMsg('ai', reply);
           // Extract HTML — handle both complete and truncated responses
           let html = null;
           const fullMatch = reply.match(/```html\n([\s\S]*?)```/);
@@ -475,10 +464,21 @@ Rules:
             // Verify it looks like valid HTML
             if (html.includes("<html") || html.includes("<!DOCTYPE")) {
               setPreview(html);
+              // Show friendly message with action buttons
+              let friendly = '✅ Generated! Preview ready below 👇';
               if (finish === "length") {
-                addMsg('system', '⚠️ Response was truncated. Preview may be incomplete.');
+                friendly += '\n⚠️ Partial — response was truncated.';
               }
+              addMsg('ai', friendly);
+              // Auto-switch to preview tab
+              document.querySelectorAll('.output-tab').forEach(t => t.classList.remove('active'));
+              document.querySelector('[data-tab="preview"]').classList.add('active');
+            } else {
+              addMsg('ai', '⚠️ Generated code doesn\'t look like valid HTML. Try again.');
             }
+          } else {
+            // No HTML found — show the raw reply as fallback
+            addMsg('ai', reply);
           }
         } else {
           addMsg('ai', '⚠️ Unexpected response. Please try again.');

@@ -219,7 +219,7 @@
             <div class="output-empty-icon">&#9654;</div>
             <p>Build something</p>
           </div>
-          <iframe class="output-iframe" id="out-frame" style="display:none;" sandbox="allow-scripts"></iframe>
+          <iframe class="output-iframe" id="out-frame" style="display:none;" sandbox="allow-scripts allow-same-origin"></iframe>
           <pre class="output-code" id="out-code"></pre>
         </div>
       </div>
@@ -359,7 +359,8 @@
 
     function setPreview(code) {
       genCode = code;
-      outFrame.src = URL.createObjectURL(new Blob([code], { type: 'text/html' }));
+      outFrame.removeAttribute('src');
+      outFrame.srcdoc = code;
       outFrame.style.display = 'block';
       outCode.style.display = 'none';
       outEmpty.style.display = 'none';
@@ -435,7 +436,7 @@ Rules:
         const r = await fetch(BASE + '/v1/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
-          body: JSON.stringify({ model: document.getElementById('model-sel').value, messages, max_tokens: 4000 }),
+          body: JSON.stringify({ model: document.getElementById('model-sel').value, messages, max_tokens: 2000 }),
           signal: controller.signal
         });
         clearTimeout(timeout);

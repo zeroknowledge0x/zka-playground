@@ -35,14 +35,6 @@
     .topbar-logo { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--green); }
     .topbar-dot { color: var(--text-3); font-size: 12px; }
     .topbar-title { font-size: 13px; color: var(--text-2); font-weight: 500; }
-    .topbar-model {
-      font-family: var(--mono); font-size: 11px; padding: 5px 28px 5px 10px;
-      background: var(--surface-3); border: 1px solid var(--border); border-radius: 6px;
-      color: var(--green); cursor: pointer; outline: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2300ff88'/%3E%3C/svg%3E");
-      background-repeat: no-repeat; background-position: right 8px center;
-    }
-    .topbar-model option { background: var(--surface-3); color: var(--text); }
     .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
     .topbar-rate { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
     .topbar-rate strong { color: var(--green); }
@@ -162,10 +154,6 @@
       .topbar-brand { flex-shrink: 0; }
       .topbar-logo { font-size: 15px; }
       .topbar-dot, .topbar-title { display: none; }
-      .topbar-model {
-        flex: 1; min-width: 0; font-size: 13px;
-        padding: 8px 30px 8px 10px; border-radius: 8px;
-      }
       .topbar-right { gap: 10px; }
       .topbar-links { display: none; }
       .topbar-rate { font-size: 10px; }
@@ -255,7 +243,6 @@
     /* Small phones (< 400px) */
     @media (max-width: 400px) {
       .topbar { padding: 6px 8px; gap: 6px; }
-      .topbar-model { font-size: 12px; padding: 7px 26px 7px 8px; }
       .topbar-rate { display: none; }
       .chat-strip { height: 65%; }
       .chat-messages { padding: 10px 10px; }
@@ -276,11 +263,6 @@
         <span class="topbar-dot">/</span>
         <span class="topbar-title">Playground</span>
       </a>
-      <select class="topbar-model" id="model-sel">
-        <option value="zk-v3z">zk-v3z</option>
-        <option value="zk-v2b">zk-v2b</option>
-        <option value="zk-v1b">zk-v1b</option>
-      </select>
       <div class="topbar-right">
         <span class="topbar-rate" id="rate"><strong>9</strong>/9 left</span>
         <div class="topbar-links">
@@ -534,7 +516,7 @@
         const r = await fetch(BASE + '/v1/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
-          body: JSON.stringify({ model: document.getElementById('model-sel').value, messages, max_tokens: 2000 }),
+          body: JSON.stringify({ model: 'zk-pg', messages, max_tokens: 2000 }),
           signal: controller.signal
         });
         clearTimeout(timeout);
@@ -630,9 +612,6 @@
       input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });
       input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 100) + 'px'; });
 
-      const saved = localStorage.getItem('zka-pg-model');
-      if (saved) document.getElementById('model-sel').value = saved;
-      document.getElementById('model-sel').addEventListener('change', e => localStorage.setItem('zka-pg-model', e.target.value));
     });
   </script>
 </body>

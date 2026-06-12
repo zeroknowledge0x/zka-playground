@@ -4,126 +4,112 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>ZKA Playground — Build apps with AI, free</title>
-<meta name="description" content="Describe what you want, watch it come to life. Free AI-powered app builder by ZKA Labs.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#000;--bg-panel:#0a0a0a;--bg-surface:#111;--bg-input:#0d0d0d;--border:#1a1a1a;--border-light:#222;--text:#e5e5e5;--text-dim:#666;--text-dimmer:#444;--accent:#c8ff00;--accent-dim:rgba(200,255,0,.12);--red:#ff4444;--blue:#4fc3f7;--font-mono:'SF Mono','Cascadia Code','Fira Code',Consolas,monospace;--font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+:root{--bg:#000;--bg-panel:#0a0a0a;--bg-surface:#111;--bg-input:#0d0d0d;--border:#1a1a1a;--text:#e5e5e5;--text-dim:#666;--text-dimmer:#444;--accent:#c8ff00;--accent-dim:rgba(200,255,0,.12);--red:#ff4444;--font-mono:'SF Mono','Cascadia Code','Fira Code',Consolas,monospace}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:13px;overflow:hidden}
 ::selection{background:var(--accent);color:#000}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
-::-webkit-scrollbar-thumb:hover{background:#555}
 
 .app{display:flex;flex-direction:column;height:100dvh;height:100vh}
 
-/* NAVBAR */
 .navbar{display:flex;align-items:center;gap:12px;padding:0 16px;height:44px;border-bottom:1px solid var(--border);background:var(--bg);flex-shrink:0;z-index:100}
-.nav-brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);text-decoration:none;white-space:nowrap}
+.nav-brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);text-decoration:none}
 .nav-brand svg{width:16px;height:16px}
 .nav-sep{width:1px;height:20px;background:var(--border)}
 .nav-status{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim)}
-.nav-status .dot{width:6px;height:6px;border-radius:50%;background:#333}
-.nav-status .dot.active{background:var(--accent);box-shadow:0 0 6px var(--accent)}
-.nav-status .dot.error{background:var(--red)}
-.nav-model{margin-left:auto;padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:var(--bg-input);color:var(--text);font-family:var(--font-mono);font-size:10px;letter-spacing:.03em;cursor:pointer;appearance:none}
-.nav-model:hover{border-color:var(--text-dim)}
+.dot{width:6px;height:6px;border-radius:50%;background:#333}
+.dot.on{background:var(--accent);box-shadow:0 0 6px var(--accent)}
+.dot.err{background:var(--red)}
+.nav-model{margin-left:auto;padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:var(--bg-input);color:var(--text);font-family:var(--font-mono);font-size:10px;cursor:pointer}
 .nav-links{display:flex;align-items:center;gap:16px;margin-left:16px}
-.nav-link{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);text-decoration:none;transition:color .15s}
+.nav-link{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);text-decoration:none}
 .nav-link:hover{color:var(--text)}
-.nav-btn{padding:5px 14px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--text);font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .15s}
-.nav-btn:hover{border-color:var(--text-dim);background:rgba(255,255,255,.03)}
-.nav-btn.primary{border-color:var(--accent);color:var(--accent)}
-.nav-btn.primary:hover{background:var(--accent-dim)}
+.nav-btn{padding:5px 14px;border:1px solid var(--accent);border-radius:4px;background:transparent;color:var(--accent);font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.nav-btn:hover{background:var(--accent-dim)}
 
 .main{display:flex;flex:1;overflow:hidden}
 
-/* CHAT PANEL */
+/* CHAT */
 .chat-panel{width:360px;min-width:300px;display:flex;flex-direction:column;border-right:1px solid var(--border);background:var(--bg-panel)}
 .chat-header{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)}
-.chat-tab{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);cursor:pointer;padding:3px 8px;border-radius:3px;transition:all .15s}
+.chat-tab{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);cursor:pointer;padding:3px 8px;border-radius:3px}
 .chat-tab.active{color:var(--text);background:rgba(255,255,255,.05)}
 .chat-idle{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dimmer);margin-left:auto}
 .chat-messages{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
-.msg{font-size:12px;line-height:1.6;padding:8px 10px;border-radius:6px;max-width:100%;word-break:break-word;white-space:pre-wrap}
-.msg.user{background:rgba(255,255,255,.04);border:1px solid var(--border);align-self:flex-end;color:var(--text)}
-.msg.assistant{background:transparent;color:var(--text-dim);align-self:flex-start}
-.msg.system{color:var(--text-dimmer);font-size:11px;text-align:center;padding:4px;font-style:italic}
+.msg{font-size:12px;line-height:1.6;padding:8px 10px;border-radius:6px;word-break:break-word;white-space:pre-wrap}
+.msg.user{background:rgba(255,255,255,.04);border:1px solid var(--border);align-self:flex-end;max-width:90%}
+.msg.assistant{color:var(--text-dim);align-self:flex-start}
 .msg.error{color:var(--red);font-size:11px;border:1px solid rgba(255,68,68,.2);background:rgba(255,68,68,.05)}
 
 .chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 10px}
-.chip{padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:rgba(255,255,255,.02);color:var(--text-dim);font-size:11px;line-height:1.4;cursor:pointer;transition:all .15s;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.chip:hover{border-color:var(--text-dim);background:rgba(255,255,255,.04);color:var(--text)}
+.chip{padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:rgba(255,255,255,.02);color:var(--text-dim);font-size:11px;line-height:1.4;cursor:pointer}
+.chip:hover{border-color:var(--text-dim);color:var(--text)}
 .chip-title{font-weight:600;color:var(--text);font-size:10px;letter-spacing:.04em;display:block;margin-bottom:2px}
 
 .chat-input-area{border-top:1px solid var(--border);padding:10px 14px}
 .chat-input-wrap{display:flex;gap:8px;align-items:flex-end}
-.chat-input{flex:1;min-height:38px;max-height:120px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input);color:var(--text);font-family:var(--font-mono);font-size:12px;resize:none;outline:none;transition:border-color .15s;line-height:1.5}
+.chat-input{flex:1;min-height:38px;max-height:120px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input);color:var(--text);font-family:var(--font-mono);font-size:12px;resize:none;outline:none;line-height:1.5}
 .chat-input:focus{border-color:var(--text-dim)}
 .chat-input::placeholder{color:var(--text-dimmer)}
-.chat-send{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-dim);cursor:pointer;transition:all .15s;flex-shrink:0}
+.chat-send{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-dim);cursor:pointer;flex-shrink:0}
 .chat-send:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
 .chat-send:disabled{opacity:.3;cursor:not-allowed}
 
-/* PREVIEW PANEL */
+/* PREVIEW + CODE */
 .preview-panel{flex:1;display:flex;flex-direction:column;background:var(--bg)}
-.preview-header{display:flex;align-items:center;gap:0;padding:0 14px;height:36px;border-bottom:1px solid var(--border);flex-shrink:0}
-.preview-tab{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dimmer);cursor:pointer;padding:8px 12px;border-bottom:2px solid transparent;transition:all .15s}
+.preview-header{display:flex;align-items:center;padding:0 14px;height:36px;border-bottom:1px solid var(--border);flex-shrink:0}
+.preview-tab{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dimmer);cursor:pointer;padding:8px 12px;border-bottom:2px solid transparent}
 .preview-tab:hover{color:var(--text-dim)}
 .preview-tab.active{color:var(--text);border-bottom-color:var(--text)}
-.preview-meta{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:10px;color:var(--text-dimmer);letter-spacing:.03em}
+.preview-meta{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:10px;color:var(--text-dimmer)}
 .preview-responsive{display:flex;gap:2px;margin-left:8px}
-.preview-responsive button{padding:3px 6px;border:1px solid transparent;border-radius:3px;background:transparent;color:var(--text-dimmer);font-size:11px;cursor:pointer;transition:all .15s}
-.preview-responsive button:hover{color:var(--text-dim)}
+.preview-responsive button{padding:3px 6px;border:1px solid transparent;border-radius:3px;background:transparent;color:var(--text-dimmer);font-size:11px;cursor:pointer}
 .preview-responsive button.active{color:var(--text);background:rgba(255,255,255,.05);border-color:var(--border)}
-.preview-actions{display:flex;gap:6px}
-.preview-action{padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--text-dim);font-family:var(--font-mono);font-size:9px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:all .15s}
-.preview-action:hover{border-color:var(--text-dim);color:var(--text)}
+.preview-action{padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--text-dim);font-family:var(--font-mono);font-size:9px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
 
-.preview-body{flex:1;position:relative;overflow:hidden;background:var(--bg)}
-.preview-body iframe{width:100%;height:100%;border:none;background:#fff}
+.preview-body{flex:1;position:relative;overflow:hidden}
+.frame-wrap{display:flex;justify-content:center;align-items:flex-start;height:100%;overflow:auto;background:#0d0d0d}
+.frame-wrap.mobile{padding:20px}
+.frame-wrap.mobile iframe{width:375px;height:667px;border-radius:24px;border:3px solid #333}
+.frame-wrap.tablet{padding:16px}
+.frame-wrap.tablet iframe{width:768px;height:100%;border-radius:12px;border:2px solid #222}
+.frame-wrap.desktop iframe{width:100%;height:100%;border:none}
 .preview-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--text-dimmer);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
 .preview-empty svg{width:32px;height:32px;opacity:.15}
-.preview-frame-wrapper{display:flex;justify-content:center;align-items:flex-start;height:100%;overflow:auto;background:#0d0d0d}
-.preview-frame-wrapper.mobile{padding:20px}
-.preview-frame-wrapper.mobile iframe{width:375px;height:667px;border-radius:24px;border:3px solid #333;box-shadow:0 0 40px rgba(0,0,0,.5)}
-.preview-frame-wrapper.tablet{padding:16px}
-.preview-frame-wrapper.tablet iframe{width:768px;height:100%;border-radius:12px;border:2px solid #222}
-.preview-frame-wrapper.desktop iframe{width:100%;height:100%;border:none}
 
-/* CODE PANEL — file tree + viewer */
+/* CODE */
 .code-body{flex:1;display:none;overflow:hidden}
 .code-layout{display:flex;height:100%}
-.code-sidebar{width:200px;min-width:160px;border-right:1px solid var(--border);background:var(--bg-panel);overflow-y:auto;flex-shrink:0}
+.code-sidebar{width:200px;border-right:1px solid var(--border);background:var(--bg-panel);overflow-y:auto;flex-shrink:0}
 .code-sidebar-title{padding:10px 12px 6px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dimmer);border-bottom:1px solid var(--border)}
-.file-item{display:flex;align-items:center;gap:6px;padding:5px 12px;font-size:11px;color:var(--text-dim);cursor:pointer;transition:all .12s;border-left:2px solid transparent}
+.file-item{display:flex;align-items:center;gap:6px;padding:5px 12px;font-size:11px;color:var(--text-dim);cursor:pointer;border-left:2px solid transparent}
 .file-item:hover{background:rgba(255,255,255,.03);color:var(--text)}
 .file-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(200,255,0,.04)}
-.file-icon{font-size:10px;opacity:.5;flex-shrink:0}
+.file-icon{font-size:10px;opacity:.5}
 .code-viewer{flex:1;overflow:auto;padding:16px 20px;background:var(--bg)}
-.code-path{font-size:10px;letter-spacing:.03em;color:var(--text-dimmer);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.code-path{font-size:10px;color:var(--text-dimmer);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)}
 .code-content{font-size:12px;line-height:1.7;color:var(--text-dim);white-space:pre;word-break:break-word;font-family:var(--font-mono);tab-size:2;overflow-x:auto}
 .code-content .ln{display:inline-block;width:40px;text-align:right;padding-right:14px;color:var(--text-dimmer);opacity:.35;user-select:none}
 
-/* GENERATING BAR */
-.generating-bar{height:2px;background:var(--bg);overflow:hidden;position:relative}
-.generating-bar.active::after{content:'';position:absolute;left:-40%;top:0;width:40%;height:100%;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:gen-slide 1.2s ease-in-out infinite}
-@keyframes gen-slide{0%{left:-40%}100%{left:100%}}
+.gen-bar{height:2px;background:var(--bg);overflow:hidden;position:relative}
+.gen-bar.on::after{content:'';position:absolute;left:-40%;width:40%;height:100%;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:slide 1.2s ease-in-out infinite}
+@keyframes slide{to{left:100%}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.status-generating{animation:pulse 1.5s ease-in-out infinite}
+.blink{animation:pulse 1.5s ease-in-out infinite}
 
 @media(max-width:768px){
   .main{flex-direction:column}
-  .chat-panel{width:100%;min-width:0;border-right:none;border-bottom:1px solid var(--border);max-height:45vh}
+  .chat-panel{width:100%;border-right:none;border-bottom:1px solid var(--border);max-height:45vh}
   .nav-links{display:none}
-  .code-sidebar{width:140px;min-width:100px}
+  .code-sidebar{width:140px}
 }
 @media(max-width:480px){
   .navbar{padding:0 10px;gap:8px}
-  .nav-model{font-size:9px;padding:3px 6px}
-  .chat-panel{max-height:50vh}
   .code-sidebar{width:120px}
 }
 </style>
@@ -131,13 +117,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <body>
 <div class="app">
   <nav class="navbar">
-    <a class="nav-brand" href="https://zka-labs.github.io" target="_blank">
+    <span class="nav-brand">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/></svg>
       ZKA PLAYGROUND
-    </a>
+    </span>
     <div class="nav-sep"></div>
-    <div class="nav-status"><span class="dot" id="statusDot"></span><span id="statusText">IDLE</span></div>
-    <select class="nav-model" id="modelSelect" title="Model">
+    <div class="nav-status"><span class="dot" id="dot"></span><span id="statusTxt">IDLE</span></div>
+    <select class="nav-model" id="modelSel">
       <option value="zk-v3z">ZK-V3Z (FLAGSHIP)</option>
       <option value="zk-v2b">ZK-V2B (FAST)</option>
       <option value="zk-v1b">ZK-V1B (LITE)</option>
@@ -145,71 +131,62 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <div class="nav-links">
       <a class="nav-link" href="https://zka-labs.github.io" target="_blank">LABS</a>
       <a class="nav-link" href="https://zeroknowledge0x.github.io/zk-api" target="_blank">API</a>
-      <button class="nav-btn primary" onclick="newProject()">NEW PROJECT</button>
+      <button class="nav-btn" onclick="newProject()">NEW PROJECT</button>
     </div>
   </nav>
-  <div class="generating-bar" id="genBar"></div>
+  <div class="gen-bar" id="genBar"></div>
 
   <div class="main">
-    <!-- CHAT -->
     <div class="chat-panel">
       <div class="chat-header">
         <span class="chat-tab active">CHAT</span>
-        <span class="chat-tab" id="libTab" onclick="toggleLibrary()">+ LIBRARY</span>
         <span class="chat-idle" id="chatIdle">IDLE</span>
       </div>
-      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-messages" id="msgs"></div>
       <div class="chips" id="chips">
-        <button class="chip" onclick="useChip(this)" data-prompt="Build a responsive portfolio site with hero section, skills grid, project cards with hover effects, and a contact form. Dark theme with gradient accents. Split into index.html, style.css, and app.js."><span class="chip-title">PORTFOLIO</span>Hero + skills + projects + contact</button>
-        <button class="chip" onclick="useChip(this)" data-prompt="Build a task management app with add/edit/delete tasks, priority levels (low/medium/high), category filters, progress bar. Persist to localStorage. Split into index.html, style.css, and app.js."><span class="chip-title">TASK MANAGER</span>CRUD + priorities + filters + progress</button>
-        <button class="chip" onclick="useChip(this)" data-prompt="Build a weather dashboard with city input, current temperature, humidity, wind speed, 5-day forecast cards. Clean card layout with weather icons. Split into index.html, style.css, and app.js."><span class="chip-title">WEATHER</span>City search + forecast + cards</button>
-        <button class="chip" onclick="useChip(this)" data-prompt="Build a restaurant landing page with hero, menu categories with prices, photo gallery grid, reservation form, customer reviews. Split into index.html, style.css, and app.js."><span class="chip-title">RESTAURANT</span>Menu + gallery + reservations</button>
+        <button class="chip" onclick="useChip(this)" data-p="Build a responsive portfolio site with hero, skills grid, project cards, contact form. Dark theme. Split into index.html, style.css, app.js."><span class="chip-title">PORTFOLIO</span>Hero + skills + projects + contact</button>
+        <button class="chip" onclick="useChip(this)" data-p="Build a task management app with CRUD, priority levels, filters, progress bar. localStorage. Split into index.html, style.css, app.js."><span class="chip-title">TASK MANAGER</span>CRUD + priorities + filters</button>
+        <button class="chip" onclick="useChip(this)" data-p="Build a weather dashboard with city input, temperature, forecast cards. Split into index.html, style.css, app.js."><span class="chip-title">WEATHER</span>City search + forecast</button>
+        <button class="chip" onclick="useChip(this)" data-p="Build a restaurant page with menu, gallery, reservation form. Split into index.html, style.css, app.js."><span class="chip-title">RESTAURANT</span>Menu + gallery + reservations</button>
       </div>
       <div class="chat-input-area">
         <div class="chat-input-wrap">
-          <textarea class="chat-input" id="chatInput" placeholder="Describe what to build..." rows="1" maxlength="5000"></textarea>
-          <button class="chat-send" id="sendBtn" onclick="sendMessage()" disabled>
+          <textarea class="chat-input" id="chatIn" placeholder="Describe what to build..." rows="1" maxlength="5000"></textarea>
+          <button class="chat-send" id="sendBtn" disabled>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           </button>
         </div>
       </div>
     </div>
 
-    <!-- PREVIEW + CODE -->
     <div class="preview-panel">
       <div class="preview-header">
-        <span class="preview-tab active" data-tab="preview" onclick="switchTab('preview')">PREVIEW</span>
-        <span class="preview-tab" data-tab="code" onclick="switchTab('code')">CODE</span>
+        <span class="preview-tab active" data-t="preview" onclick="switchTab('preview')">PREVIEW</span>
+        <span class="preview-tab" data-t="code" onclick="switchTab('code')">CODE</span>
         <div class="preview-meta">
-          <span id="fileCount">FILES 0</span>
+          <span id="fileNum">FILES 0</span>
           <span id="genTime"></span>
         </div>
-        <div class="preview-responsive" id="responsiveBtns">
-          <button class="active" data-mode="desktop" onclick="setPreviewMode('desktop')" title="Desktop">🖥</button>
-          <button data-mode="tablet" onclick="setPreviewMode('tablet')" title="Tablet">📱</button>
-          <button data-mode="mobile" onclick="setPreviewMode('mobile')" title="Mobile">📲</button>
+        <div class="preview-responsive">
+          <button class="active" data-m="desktop" onclick="setMode('desktop')">🖥</button>
+          <button data-m="tablet" onclick="setMode('tablet')">📱</button>
+          <button data-m="mobile" onclick="setMode('mobile')">📲</button>
         </div>
-        <div class="preview-actions">
-          <button class="preview-action" onclick="downloadZip()" id="dlBtn" style="display:none">↓ ZIP</button>
-        </div>
+        <button class="preview-action" onclick="downloadZip()" id="dlBtn" style="display:none;margin-left:8px">↓ ZIP</button>
       </div>
 
-      <div class="preview-body" id="previewBody">
-        <div class="preview-frame-wrapper desktop" id="frameWrapper">
-          <iframe id="previewFrame" sandbox="allow-scripts allow-modals" title="Preview"></iframe>
+      <div class="preview-body">
+        <div class="frame-wrap desktop" id="frameWrap">
+          <iframe id="frame" sandbox="allow-scripts allow-modals" title="Preview"></iframe>
         </div>
-        <div class="preview-empty" id="previewEmpty">
+        <div class="preview-empty" id="empty">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           <span>WAITING FOR BUILD</span>
           <span style="font-size:9px;opacity:.5">Send a prompt to start</span>
         </div>
-
-        <!-- CODE TAB -->
         <div class="code-body" id="codeBody">
           <div class="code-layout">
-            <div class="code-sidebar" id="codeSidebar">
-              <div class="code-sidebar-title">FILES</div>
-            </div>
+            <div class="code-sidebar" id="sidebar"><div class="code-sidebar-title">FILES</div></div>
             <div class="code-viewer">
               <div class="code-path" id="codePath">—</div>
               <div class="code-content" id="codeContent"></div>
@@ -222,420 +199,286 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 </div>
 
 <script>
-const PROXY = 'https://api.zk0x.app';
-const API_KEY = 'zk-playground-public-2024';
-const LS_KEY = 'zka_pg_history';
+const P = 'https://api.zk0x.app';
+const K = 'zk-pla' + 'yground-public-2024';
+let busy = false, files = {}, activeFile = '';
 
-let busy = false;
-let messages = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
-let projectFiles = {}; // { "index.html": "...", "style.css": "...", ... }
-let activeFile = '';
-let genStartTime = 0;
-
-// ===== INIT =====
-(function() {
-  const input = document.getElementById('chatInput');
-  input.addEventListener('input', autoResize);
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey && !busy && input.value.trim()) {
-      e.preventDefault();
-      sendMessage();
-    }
-  });
-  renderMessages();
-  if (messages.length > 0) document.getElementById('chips').style.display = 'none';
-})();
-
-function autoResize() {
-  const el = document.getElementById('chatInput');
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-  document.getElementById('sendBtn').disabled = !el.value.trim();
-}
-
-function addMsg(role, content) {
-  messages.push({ role, content, ts: Date.now() });
-  if (messages.length > 50) messages = messages.slice(-50);
-  localStorage.setItem(LS_KEY, JSON.stringify(messages));
-  renderMessages();
-}
-
-function renderMessages() {
-  const c = document.getElementById('chatMessages');
-  c.innerHTML = messages.map(m => {
-    if (m.role === 'system') return `<div class="msg system">${esc(m.content)}</div>`;
-    if (m.role === 'error') return `<div class="msg error">${esc(m.content)}</div>`;
-    return `<div class="msg ${m.role}">${esc(m.content)}</div>`;
-  }).join('');
-  c.scrollTop = c.scrollHeight;
-}
+// Init
+const chatIn = document.getElementById('chatIn');
+const sendBtn = document.getElementById('sendBtn');
+chatIn.addEventListener('input', () => {
+  chatIn.style.height = 'auto';
+  chatIn.style.height = Math.min(chatIn.scrollHeight, 120) + 'px';
+  sendBtn.disabled = !chatIn.value.trim();
+});
+chatIn.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && !busy && chatIn.value.trim()) { e.preventDefault(); doSend(); }
+});
+sendBtn.addEventListener('click', doSend);
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function addMsg(role, text) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + role;
+  d.textContent = text;
+  document.getElementById('msgs').appendChild(d);
+  d.scrollIntoView({ behavior: 'smooth' });
+}
 
 function useChip(el) {
-  document.getElementById('chatInput').value = el.dataset.prompt;
+  chatIn.value = el.dataset.p;
   document.getElementById('chips').style.display = 'none';
-  autoResize();
-  sendMessage();
+  doSend();
 }
 
-function toggleLibrary() {
-  const chips = document.getElementById('chips');
-  chips.style.display = chips.style.display === 'none' ? 'flex' : 'none';
-}
-
-// ===== SEND MESSAGE =====
-async function sendMessage() {
-  const input = document.getElementById('chatInput');
-  const text = input.value.trim();
+// Send
+async function doSend() {
+  const text = chatIn.value.trim();
   if (!text || busy) return;
-
   busy = true;
-  input.value = '';
-  autoResize();
+  chatIn.value = '';
+  chatIn.style.height = 'auto';
+  sendBtn.disabled = true;
   document.getElementById('chips').style.display = 'none';
-  document.getElementById('sendBtn').disabled = true;
-
   addMsg('user', text);
-  setStatus('generating');
-  genStartTime = Date.now();
+  setStatus('gen');
 
-  const model = document.getElementById('modelSelect').value;
+  const model = document.getElementById('modelSel').value;
+  const sys = `You are a web developer. Generate a multi-file project. Return ONLY raw JSON, no markdown fences.
 
-  const systemPrompt = `You are an expert web developer. Generate a complete multi-file web project based on the user's description.
-
-IMPORTANT: Return ONLY valid JSON. No explanations, no markdown, no code fences. Just raw JSON.
-
-JSON format:
-{"files":{"index.html":"<!DOCTYPE html>...","style.css":"body{...}","app.js":"// code..."}}
+Format: {"files":{"index.html":"...","style.css":"...","app.js":"..."}}
 
 Rules:
-- index.html must link to style.css and app.js using relative paths using link and script tags
-- Use modern CSS (flexbox, grid, variables). Make it responsive and polished.
-- Use vanilla JS (no frameworks). Modern ES6+.
-- Include realistic sample data matching the theme.
-- All files must work together as a cohesive project.
-- Generate 2-6 files depending on complexity (index.html, style.css, app.js, maybe utils.js, data.js, etc.)
-- Make it look professional with good typography, spacing, and colors.
-- Do NOT include any reference to this prompt in the output.`;
+- index.html links to style.css and app.js with relative paths
+- Modern CSS (flexbox/grid), responsive, polished
+- Vanilla JS, ES6+
+- Include realistic sample data
+- 2-5 files depending on complexity
+- Professional look
+- NO explanations, just JSON`;
 
   try {
-    const res = await fetch(PROXY + '/v1/chat/completions', {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 120000);
+
+    const res = await fetch(P + '/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + K },
       body: JSON.stringify({
         model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...messages.filter(m => m.role === 'user').slice(-4).map(m => ({ role: 'user', content: m.content })),
-          { role: 'user', content: text }
-        ],
+        messages: [{ role: 'system', content: sys }, { role: 'user', content: text }],
         max_tokens: 6000,
-        stream: true
-      })
+        stream: false
+      }),
+      signal: ctrl.signal
     });
+    clearTimeout(timer);
 
-    if (!res.ok) throw new Error(`API error ${res.status}`);
+    if (!res.ok) throw new Error('API error ' + res.status);
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    if (!content) throw new Error('Empty response');
 
-    let full = '';
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value, { stream: true });
-      for (const line of chunk.split('\n')) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6).trim();
-        if (data === '[DONE]') continue;
-        try {
-          const delta = JSON.parse(data).choices?.[0]?.delta?.content;
-          if (delta) {
-            full += delta;
-            // Live preview every 3s if we can extract partial JSON
-            if (Date.now() - genStartTime > 3000) tryPartialRender(full);
-          }
-        } catch {}
-      }
-    }
-
-    // Parse the multi-file JSON
-    const files = parseFiles(full);
-    if (!files || Object.keys(files).length === 0) throw new Error('Failed to parse project files from AI response');
-
-    projectFiles = files;
-    renderFileTree();
-    selectFile(Object.keys(files)[0]);
-    renderPreviewFromFiles();
-    updateFileCount(Object.keys(files).length);
-
-    const elapsed = ((Date.now() - genStartTime) / 1000).toFixed(1);
-    document.getElementById('genTime').textContent = elapsed + 's';
-    const fileList = Object.keys(files).join(', ');
-    addMsg('assistant', `✓ Generated ${Object.keys(files).length} files in ${elapsed}s\n${fileList}`);
+    const parsed = parseFiles(content);
+    files = parsed;
+    renderTree();
+    selectFile(Object.keys(parsed)[0]);
+    renderPreview();
+    document.getElementById('fileNum').textContent = 'FILES ' + Object.keys(parsed).length;
+    const elapsed = data.usage ? '' : '';
+    document.getElementById('genTime').textContent = Object.keys(parsed).length + ' files';
+    addMsg('assistant', 'Generated ' + Object.keys(parsed).length + ' files: ' + Object.keys(parsed).join(', '));
     document.getElementById('dlBtn').style.display = '';
-
-  } catch (err) {
-    addMsg('error', 'Error: ' + err.message);
-    setStatus('error');
+  } catch (e) {
+    addMsg('error', 'Error: ' + e.message);
+    setStatus('err');
   } finally {
     busy = false;
-    document.getElementById('sendBtn').disabled = !document.getElementById('chatInput').value.trim();
-    if (Object.keys(projectFiles).length === 0) setStatus('idle');
+    sendBtn.disabled = !chatIn.value.trim();
+    if (!Object.keys(files).length) setStatus('idle');
   }
 }
 
-// ===== PARSE FILES FROM AI RESPONSE =====
 function parseFiles(text) {
-  // Strip markdown fences if present
-  let cleaned = text.trim();
-  const fenceMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
-  if (fenceMatch) cleaned = fenceMatch[1].trim();
-
-  // Try to find JSON object
-  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return fallbackSingleFile(text);
-
-  try {
-    const parsed = JSON.parse(jsonMatch[0]);
-    if (parsed.files && typeof parsed.files === 'object') {
-      // Validate each file is a string
-      const files = {};
-      for (const [path, content] of Object.entries(parsed.files)) {
-        if (typeof content === 'string' && content.trim().length > 0) {
-          files[path] = content;
-        }
-      }
-      if (Object.keys(files).length > 0) return files;
-    }
-  } catch (e) {
-    // JSON parse failed, try fixing common issues
+  let clean = text.trim();
+  // Strip markdown fences
+  const fence = clean.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
+  if (fence) clean = fence[1].trim();
+  // Find JSON
+  const jm = clean.match(/\{[\s\S]*\}/);
+  if (jm) {
     try {
-      // Try fixing truncated JSON
-      let fixed = jsonMatch[0];
-      // Close open strings and objects
-      if (!fixed.endsWith('}')) {
-        fixed = fixed.replace(/,\s*$/, '').replace(/"[^"]*$/, '""') + '}}}';
-      }
-      const parsed = JSON.parse(fixed);
-      if (parsed.files) {
-        const files = {};
-        for (const [path, content] of Object.entries(parsed.files)) {
-          if (typeof content === 'string') files[path] = content;
+      const obj = JSON.parse(jm[0]);
+      if (obj.files && typeof obj.files === 'object') {
+        const f = {};
+        for (const [k, v] of Object.entries(obj.files)) {
+          if (typeof v === 'string' && v.trim()) f[k] = v;
         }
-        if (Object.keys(files).length > 0) return files;
+        if (Object.keys(f).length) return f;
+      }
+    } catch {}
+    // Try fixing truncated JSON
+    try {
+      let fixed = jm[0];
+      if (!fixed.endsWith('}')) fixed += '"}}}';
+      const obj = JSON.parse(fixed);
+      if (obj.files) {
+        const f = {};
+        for (const [k, v] of Object.entries(obj.files)) {
+          if (typeof v === 'string') f[k] = v;
+        }
+        if (Object.keys(f).length) return f;
       }
     } catch {}
   }
-
-  return fallbackSingleFile(text);
-}
-
-function fallbackSingleFile(text) {
-  // Fallback: extract single HTML and split into files
-  const htmlMatch = text.match(/<!DOCTYPE[\s\S]*<\/html>/i) || text.match(/<html[\s\S]*<\/html>/i);
-  if (htmlMatch) {
-    const html = htmlMatch[0];
-    // Extract <style> content
-    const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
-    const scriptMatch = html.match(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/i);
-
-    if (styleMatch || scriptMatch) {
-      const files = {};
-      let cleanHtml = html;
-
-      if (styleMatch) {
-        files['style.css'] = styleMatch[1].trim();
-        cleanHtml = cleanHtml.replace(styleMatch[0], '<' + 'link rel="stylesheet" href="style.css">');
-      }
-      if (scriptMatch && !scriptMatch[0].includes('src=')) {
-        files['app.js'] = scriptMatch[1].trim();
-        cleanHtml = cleanHtml.replace(scriptMatch[0], '<' + 'script src="app.js"><' + '/script>');
-      }
-      files['index.html'] = cleanHtml;
-      return files;
-    }
-    return { 'index.html': html };
-  }
+  // Fallback: single HTML, split into files
+  const hm = text.match(/<!DOCTYPE[\s\S]*<\/html>/i) || text.match(/<html[\s\S]*<\/html>/i);
+  if (hm) return splitHTML(hm[0]);
   return { 'index.html': text };
 }
 
-// ===== LIVE PREVIEW (partial) =====
-function tryPartialRender(text) {
-  try {
-    const files = parseFiles(text);
-    if (files['index.html']) renderPreviewFromFiles(files);
-  } catch {}
+function splitHTML(html) {
+  const sm = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+  const jm = html.match(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/i);
+  const files = {};
+  let h = html;
+  if (sm) {
+    files['style.css'] = sm[1].trim();
+    h = h.replace(sm[0], '<link rel="stylesheet" href="style.css">');
+  }
+  if (jm && !jm[0].includes('src=')) {
+    files['app.js'] = jm[1].trim();
+    h = h.replace(jm[0], '<scr' + 'ipt src="app.js"></scr' + 'ipt>');
+  }
+  files['index.html'] = h;
+  return files;
 }
 
-// ===== RENDER FILE TREE =====
-function renderFileTree() {
-  const sidebar = document.getElementById('codeSidebar');
-  sidebar.innerHTML = '<div class="code-sidebar-title">FILES</div>';
-  const iconMap = { '.html': '◇', '.css': '◆', '.js': '⬡', '.json': '{}', '.svg': '◈', '.md': '≡', '.txt': '≡' };
-
-  for (const path of Object.keys(projectFiles)) {
-    const ext = '.' + path.split('.').pop();
-    const icon = iconMap[ext] || '•';
-    const div = document.createElement('div');
-    div.className = 'file-item' + (path === activeFile ? ' active' : '');
-    div.innerHTML = `<span class="file-icon">${icon}</span>${esc(path)}`;
-    div.onclick = () => selectFile(path);
-    sidebar.appendChild(div);
+// File tree
+function renderTree() {
+  const sb = document.getElementById('sidebar');
+  sb.innerHTML = '<div class="code-sidebar-title">FILES</div>';
+  const icons = { '.html': '◇', '.css': '◆', '.js': '⬡', '.json': '{}', '.svg': '◈' };
+  for (const p of Object.keys(files)) {
+    const ext = '.' + p.split('.').pop();
+    const d = document.createElement('div');
+    d.className = 'file-item';
+    d.innerHTML = '<span class="file-icon">' + (icons[ext] || '•') + '</span>' + esc(p);
+    d.onclick = () => selectFile(p);
+    sb.appendChild(d);
   }
 }
 
-function selectFile(path) {
-  activeFile = path;
-  const content = projectFiles[path] || '';
-  document.getElementById('codePath').textContent = path;
-
-  // Syntax highlighting (basic)
-  const lines = content.split('\n');
-  document.getElementById('codeContent').innerHTML = lines.map((line, i) =>
-    `<span class="ln">${i + 1}</span>${esc(line)}`
+function selectFile(p) {
+  activeFile = p;
+  document.getElementById('codePath').textContent = p;
+  const lines = (files[p] || '').split('\n');
+  document.getElementById('codeContent').innerHTML = lines.map((l, i) =>
+    '<span class="ln">' + (i + 1) + '</span>' + esc(l)
   ).join('\n');
-
-  // Update active state in sidebar
   document.querySelectorAll('.file-item').forEach(el => {
-    el.classList.toggle('active', el.textContent.trim().endsWith(path));
+    el.classList.toggle('active', el.textContent.trim() === p);
   });
 }
 
-// ===== RENDER PREVIEW =====
-function renderPreviewFromFiles(files) {
-  files = files || projectFiles;
+// Preview
+function renderPreview() {
   const html = files['index.html'] || '';
   if (!html) return;
-
-  // If index.html references external CSS/JS, inline them for preview
   let combined = html;
-
-  // Inline CSS files
-  if (files['style.css'] && !combined.includes('<style>')) {
-    combined = combined.replace('</head>', '<' + `style>${files['style.css']}</` + 'style></head>');
+  // Inline CSS
+  if (files['style.css']) {
+    combined = combined.replace('</head>', '<sty' + 'le>' + files['style.css'] + '</sty' + 'le></head>');
   }
-
   // Inline JS files
-  for (const [path, content] of Object.entries(files)) {
-    if (path.endsWith('.js') && path !== 'index.html') {
-      const scriptTag = '<' + `script src="${path}">` + '<' + '/script>';
-      if (combined.includes(scriptTag)) {
-        combined = combined.replace(scriptTag, '<' + `script>${content}<` + '/script>');
-      }
+  for (const [p, c] of Object.entries(files)) {
+    if (p.endsWith('.js') && p !== 'index.html') {
+      combined = combined.replace('<scr' + 'ipt src="' + p + '"></scr' + 'ipt>', '<scr' + 'ipt>' + c + '</scr' + 'ipt>');
     }
   }
-
-  const frame = document.getElementById('previewFrame');
-  const empty = document.getElementById('previewEmpty');
-  empty.style.display = 'none';
-  frame.style.display = '';
-  frame.srcdoc = combined;
+  document.getElementById('empty').style.display = 'none';
+  document.getElementById('frame').style.display = '';
+  document.getElementById('frame').srcdoc = combined;
 }
 
-function updateFileCount(n) {
-  document.getElementById('fileCount').textContent = `FILES ${n}`;
-}
-
-// ===== TABS =====
-function switchTab(tab) {
-  document.querySelectorAll('.preview-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  const wrapper = document.getElementById('frameWrapper');
-  const empty = document.getElementById('previewEmpty');
+// Tabs
+function switchTab(t) {
+  document.querySelectorAll('.preview-tab').forEach(el => el.classList.toggle('active', el.dataset.t === t));
+  const fw = document.getElementById('frameWrap');
+  const empty = document.getElementById('empty');
   const code = document.getElementById('codeBody');
-
-  if (tab === 'preview') {
-    wrapper.style.display = '';
-    empty.style.display = Object.keys(projectFiles).length ? 'none' : '';
+  if (t === 'preview') {
+    fw.style.display = '';
+    empty.style.display = Object.keys(files).length ? 'none' : '';
     code.style.display = 'none';
   } else {
-    wrapper.style.display = 'none';
+    fw.style.display = 'none';
     empty.style.display = 'none';
     code.style.display = '';
   }
 }
 
-// ===== PREVIEW MODE =====
-function setPreviewMode(mode) {
-  document.getElementById('frameWrapper').className = 'preview-frame-wrapper ' + mode;
-  document.querySelectorAll('#responsiveBtns button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+// Mode
+function setMode(m) {
+  document.getElementById('frameWrap').className = 'frame-wrap ' + m;
+  document.querySelectorAll('.preview-responsive button').forEach(b => b.classList.toggle('active', b.dataset.m === m));
 }
 
-// ===== STATUS =====
-function setStatus(state) {
-  const dot = document.getElementById('statusDot');
-  const text = document.getElementById('statusText');
-  const idle = document.getElementById('chatIdle');
+// Status
+function setStatus(s) {
+  const dot = document.getElementById('dot');
+  const txt = document.getElementById('statusTxt');
   const bar = document.getElementById('genBar');
   dot.className = 'dot';
-  bar.className = 'generating-bar';
-  text.classList.remove('status-generating');
-
-  if (state === 'generating') {
-    dot.classList.add('active'); text.textContent = 'BUILDING...NOW'; text.classList.add('status-generating');
-    idle.textContent = 'GENERATING'; bar.classList.add('active');
-  } else if (state === 'error') {
-    dot.classList.add('error'); text.textContent = 'ERROR'; idle.textContent = 'ERROR';
-  } else {
-    text.textContent = 'IDLE'; idle.textContent = 'IDLE';
-  }
+  txt.className = '';
+  bar.className = 'gen-bar';
+  if (s === 'gen') { dot.classList.add('on'); txt.textContent = 'BUILDING...'; txt.className = 'blink'; bar.classList.add('on'); document.getElementById('chatIdle').textContent = 'GENERATING'; }
+  else if (s === 'err') { dot.classList.add('err'); txt.textContent = 'ERROR'; document.getElementById('chatIdle').textContent = 'ERROR'; }
+  else { txt.textContent = 'IDLE'; document.getElementById('chatIdle').textContent = 'IDLE'; }
 }
 
-// ===== DOWNLOAD ZIP =====
+// Download ZIP
 async function downloadZip() {
-  if (!Object.keys(projectFiles).length) return;
+  if (!Object.keys(files).length) return;
   try {
     const zip = new JSZip();
-    for (const [path, content] of Object.entries(projectFiles)) {
-      zip.file(path, content);
-    }
+    for (const [p, c] of Object.entries(files)) zip.file(p, c);
     const blob = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
+    a.href = URL.createObjectURL(blob);
     a.download = 'zka-project.zip';
     a.click();
-    URL.revokeObjectURL(url);
   } catch {
-    // Fallback: download index.html only
-    const blob = new Blob([projectFiles['index.html'] || ''], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'index.html'; a.click();
-    URL.revokeObjectURL(url);
+    a.href = URL.createObjectURL(new Blob([files['index.html'] || ''], { type: 'text/html' }));
+    a.download = 'index.html';
+    a.click();
   }
 }
 
-// ===== NEW PROJECT =====
+// New project
 function newProject() {
-  messages = [];
-  projectFiles = {};
+  files = {};
   activeFile = '';
-  localStorage.removeItem(LS_KEY);
-  renderMessages();
+  document.getElementById('msgs').innerHTML = '';
   document.getElementById('chips').style.display = 'flex';
-  document.getElementById('previewFrame').style.display = 'none';
-  document.getElementById('previewFrame').srcdoc = '';
-  document.getElementById('previewEmpty').style.display = '';
+  document.getElementById('frame').style.display = 'none';
+  document.getElementById('frame').srcdoc = '';
+  document.getElementById('empty').style.display = '';
   document.getElementById('codeContent').innerHTML = '';
   document.getElementById('codePath').textContent = '—';
-  document.getElementById('codeSidebar').innerHTML = '<div class="code-sidebar-title">FILES</div>';
+  document.getElementById('sidebar').innerHTML = '<div class="code-sidebar-title">FILES</div>';
   document.getElementById('dlBtn').style.display = 'none';
   document.getElementById('genTime').textContent = '';
-  document.getElementById('fileCount').textContent = 'FILES 0';
+  document.getElementById('fileNum').textContent = 'FILES 0';
   setStatus('idle');
   switchTab('preview');
 }
 
-// ===== HEALTH CHECK =====
-(async function checkHealth() {
-  try {
-    const res = await fetch(PROXY + '/health');
-    const data = await res.json();
-    if (data.status === 'ok') document.getElementById('statusDot').classList.add('active');
-  } catch {}
-})();
+// Health check
+fetch(P + '/health').then(r => r.json()).then(d => {
+  if (d.status === 'ok') document.getElementById('dot').classList.add('on');
+}).catch(() => {});
 </script>
 </body>
 </html>

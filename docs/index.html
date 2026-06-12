@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZKA Playground — Code, Run, Build</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #030303;
+      --surface: #0a0a0a;
+      --surface-2: #0f0f0f;
+      --surface-3: #141414;
+      --border: #1a1a1a;
+      --border-hover: #252525;
+      --text: #eaeaea;
+      --text-2: #999;
+      --text-3: #555;
+      --green: #00ff88;
+      --green-2: #00cc6a;
+      --green-dim: rgba(0,255,136,0.06);
+      --green-glow: rgba(0,255,136,0.12);
+      --green-border: rgba(0,255,136,0.15);
+      --font: 'Inter', -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', 'SF Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    ::selection { background: var(--green); color: var(--bg); }
+
+    /* ── LOADER ── */
+    #loader {
+      position: fixed; inset: 0; z-index: 10000;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      transition: opacity 0.6s, visibility 0.6s;
+    }
+    #loader.hidden { opacity: 0; visibility: hidden; }
+    .loader-logo { font-family: var(--mono); font-size: 28px; font-weight: 600; margin-bottom: 24px; }
+    .loader-logo .g { color: var(--green); }
+    .loader-track { width: 160px; height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
+    .loader-bar { height: 100%; background: var(--green); width: 0; animation: load 1.6s ease forwards; }
+    @keyframes load { 0%{width:0} 50%{width:60%} 100%{width:100%} }
+    .loader-text { font-family: var(--mono); font-size: 10px; color: var(--text-3); margin-top: 14px; letter-spacing: 3px; }
+
+    /* ── BG ── */
+    .bg-grid {
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+    }
+
+    /* ── LAYOUT ── */
+    .content { position: relative; z-index: 10; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 32px; }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      background: rgba(3,3,3,0.75); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1100px; margin: 0 auto; padding: 0 32px;
+      height: 56px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { font-family: var(--mono); font-size: 15px; font-weight: 600; color: var(--text); text-decoration: none; }
+    .nav-logo .g { color: var(--green); }
+    .nav-links { display: flex; gap: 24px; list-style: none; }
+    .nav-links a { color: var(--text-2); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.15s; }
+    .nav-links a:hover { color: var(--green); }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 120px 0 40px;
+      text-align: center;
+    }
+    .hero-eyebrow {
+      font-family: var(--mono); font-size: 11px; color: var(--green);
+      letter-spacing: 3px; text-transform: uppercase; margin-bottom: 16px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .hero-eyebrow::before, .hero-eyebrow::after { content: ''; width: 24px; height: 1px; background: var(--green); }
+    .hero-title {
+      font-size: clamp(36px, 6vw, 56px); font-weight: 900;
+      letter-spacing: -2px; line-height: 1; margin-bottom: 12px;
+    }
+    .hero-sub {
+      font-size: 16px; color: var(--text-2); max-width: 500px;
+      line-height: 1.6; margin: 0 auto 24px;
+    }
+    .hero-pills {
+      display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px;
+    }
+    .pill {
+      font-family: var(--mono); font-size: 10px; padding: 4px 10px;
+      border-radius: 4px; background: var(--green-dim); color: var(--green);
+      border: 1px solid var(--green-border); text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .hero-links {
+      display: flex; gap: 16px; justify-content: center; margin-top: 16px;
+    }
+    .hero-links a {
+      font-family: var(--mono); font-size: 12px; color: var(--text-3); text-decoration: none;
+      transition: color 0.15s;
+    }
+    .hero-links a:hover { color: var(--green); }
+
+    /* ── PLAYGROUND ── */
+    .playground-wrap {
+      padding: 0 0 80px;
+    }
+
+    /* Toolbar */
+    .pg-toolbar {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      padding: 12px 0; margin-bottom: 8px;
+    }
+    .pg-select {
+      font-family: var(--mono); font-size: 12px; padding: 7px 12px;
+      background: var(--surface-3); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--green); cursor: pointer; outline: none;
+      transition: border-color 0.15s;
+    }
+    .pg-select:hover { border-color: var(--border-hover); }
+    .pg-select option { background: var(--surface-3); color: var(--text); }
+    .pg-btn {
+      font-family: var(--mono); font-size: 12px; padding: 7px 16px;
+      border-radius: 6px; border: 1px solid var(--border); cursor: pointer;
+      font-weight: 600; transition: all 0.15s; background: var(--surface-3); color: var(--text);
+    }
+    .pg-btn:hover { border-color: var(--border-hover); }
+    .pg-btn-run { background: var(--green); color: #000; border-color: var(--green); }
+    .pg-btn-run:hover { box-shadow: 0 0 16px rgba(0,255,136,0.3); }
+    .pg-btn-ai { background: var(--green-dim); color: var(--green); border-color: var(--green-border); }
+    .pg-btn-ai:hover { background: rgba(0,255,136,0.12); }
+    .pg-btn-save { background: transparent; color: var(--text-2); border-color: var(--border); }
+    .pg-btn-save:hover { border-color: var(--green-border); color: var(--green); }
+    .pg-btn-clear { background: transparent; color: var(--text-3); border-color: var(--border); }
+    .pg-btn-clear:hover { border-color: #f44; color: #f44; }
+    .pg-rate {
+      font-family: var(--mono); font-size: 11px; color: var(--text-3); margin-left: auto;
+    }
+    .pg-rate strong { color: var(--green); }
+
+    /* Main editor area */
+    .pg-main {
+      display: flex; gap: 1px; background: var(--border); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden; min-height: 500px;
+    }
+
+    /* Editor side */
+    .pg-editor-wrapper {
+      flex: 1; display: flex; background: var(--surface); min-width: 0; position: relative;
+    }
+    .pg-gutter {
+      width: 40px; padding: 14px 8px 14px 0; text-align: right;
+      font-family: var(--mono); font-size: 13px; line-height: 1.6;
+      color: var(--text-3); user-select: none; overflow: hidden;
+      background: var(--surface); border-right: 1px solid var(--border);
+    }
+    .pg-editor {
+      flex: 1; padding: 14px 16px; font-family: var(--mono); font-size: 13px;
+      line-height: 1.6; color: var(--text); background: transparent;
+      border: none; outline: none; resize: none; tab-size: 2;
+      white-space: pre; overflow: auto; min-width: 0;
+    }
+    .pg-editor::placeholder { color: var(--text-3); }
+
+    /* Output side */
+    .pg-output-wrapper {
+      flex: 1; display: flex; flex-direction: column; background: var(--surface); min-width: 0;
+    }
+    .pg-output-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; border-bottom: 1px solid var(--border);
+    }
+    .pg-output-label {
+      font-family: var(--mono); font-size: 11px; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .pg-output-clear {
+      font-family: var(--mono); font-size: 10px; color: var(--text-3);
+      background: none; border: 1px solid var(--border); border-radius: 4px;
+      padding: 3px 8px; cursor: pointer; transition: all 0.15s;
+    }
+    .pg-output-clear:hover { border-color: #f44; color: #f44; }
+    .pg-output {
+      flex: 1; padding: 14px 16px; font-family: var(--mono); font-size: 13px;
+      line-height: 1.6; color: var(--text); overflow: auto; white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .pg-output .log { color: var(--text); }
+    .pg-output .error { color: #f44; }
+    .pg-output .system { color: var(--text-3); font-style: italic; }
+    .pg-output .success { color: var(--green); }
+
+    /* HTML Preview iframe */
+    .pg-preview {
+      width: 100%; height: 100%; border: none; background: #fff;
+      display: none;
+    }
+
+    /* AI Chat panel */
+    .pg-ai-panel {
+      display: none; flex-direction: column; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 12px; margin-top: 12px;
+      max-height: 400px; overflow: hidden;
+    }
+    .pg-ai-panel.active { display: flex; }
+    .pg-ai-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+    }
+    .pg-ai-title {
+      font-family: var(--mono); font-size: 12px; color: var(--green); font-weight: 600;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pg-ai-close {
+      font-family: var(--mono); font-size: 11px; color: var(--text-3);
+      background: none; border: 1px solid var(--border); border-radius: 4px;
+      padding: 3px 8px; cursor: pointer; transition: all 0.15s;
+    }
+    .pg-ai-close:hover { border-color: #f44; color: #f44; }
+    .pg-ai-messages {
+      flex: 1; overflow-y: auto; padding: 14px 16px; min-height: 150px;
+    }
+    .pg-ai-bubble {
+      max-width: 90%; padding: 10px 14px; border-radius: 14px;
+      margin-bottom: 10px; font-size: 13px; line-height: 1.6;
+      white-space: pre-wrap; word-break: break-word;
+      animation: bubbleIn 0.2s ease;
+    }
+    @keyframes bubbleIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .pg-ai-bubble.user {
+      align-self: flex-end; background: var(--green-dim); color: var(--green);
+      border: 1px solid var(--green-border); margin-left: auto;
+    }
+    .pg-ai-bubble.assistant {
+      align-self: flex-start; background: var(--surface-3); color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .pg-ai-bubble .label {
+      font-family: var(--mono); font-size: 10px; color: var(--text-3);
+      margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .pg-ai-input-row {
+      display: flex; border-top: 1px solid var(--border);
+    }
+    .pg-ai-input {
+      flex: 1; padding: 12px 16px; font-family: var(--mono); font-size: 12px;
+      background: transparent; border: none; color: var(--text); outline: none;
+    }
+    .pg-ai-input::placeholder { color: var(--text-3); }
+    .pg-ai-send {
+      padding: 12px 16px; background: var(--green-dim); border: none;
+      border-left: 1px solid var(--border); color: var(--green); cursor: pointer;
+      font-family: var(--mono); font-size: 14px; transition: background 0.15s;
+    }
+    .pg-ai-send:hover { background: rgba(0,255,136,0.12); }
+    .pg-ai-send:disabled { opacity: 0.4; cursor: default; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border); padding: 24px 0;
+    }
+    .footer-inner {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .footer-brand { font-family: var(--mono); font-size: 13px; color: var(--text-3); }
+    .footer-brand .g { color: var(--green); }
+    .footer-links { display: flex; gap: 20px; }
+    .footer-links a { font-size: 12px; color: var(--text-3); text-decoration: none; transition: color 0.15s; }
+    .footer-links a:hover { color: var(--green); }
+
+    /* ── MOBILE ── */
+    @media (max-width: 768px) {
+      .container { padding: 0 20px; }
+      .nav-inner { padding: 0 20px; }
+      .pg-main { flex-direction: column; min-height: auto; }
+      .pg-editor-wrapper { min-height: 250px; }
+      .pg-output-wrapper { min-height: 200px; }
+      .pg-toolbar { flex-wrap: wrap; }
+      .pg-rate { margin-left: 0; width: 100%; }
+      .hero { padding: 100px 0 30px; }
+      .hero-title { letter-spacing: -1px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loader -->
+  <div id="loader">
+    <div class="loader-logo">ZK<span class="g">A</span></div>
+    <div class="loader-track"><div class="loader-bar"></div></div>
+    <div class="loader-text">PLAYGROUND</div>
+  </div>
+
+  <!-- BG -->
+  <div class="bg-grid"></div>
+
+  <div class="content">
+
+    <!-- NAV -->
+    <nav>
+      <div class="nav-inner">
+        <a href="#" class="nav-logo">ZK<span class="g">A</span> Playground</a>
+        <ul class="nav-links">
+          <li><a href="https://zeroknowledge0x.github.io/zk-api/">API</a></li>
+          <li><a href="https://zeroknowledge0x.github.io/ZKA-Labs/">ZKA Labs</a></li>
+          <li><a href="https://github.com/zeroknowledge0x/zk-playground">GitHub</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="container">
+        <div class="hero-eyebrow">Code Playground</div>
+        <h1 class="hero-title">Write. <span style="color:var(--green)">Run.</span> Build.</h1>
+        <p class="hero-sub">Full code playground with real execution. JavaScript runs in-browser, Python & Bash via Piston API. Ask AI to explain or improve your code.</p>
+        <div class="hero-pills">
+          <span class="pill">JavaScript</span>
+          <span class="pill">Python</span>
+          <span class="pill">HTML/CSS</span>
+          <span class="pill">Bash</span>
+          <span class="pill">AI Assist</span>
+        </div>
+        <div class="hero-links">
+          <a href="https://zeroknowledge0x.github.io/zk-api/">← ZKA API</a>
+          <a href="https://zeroknowledge0x.github.io/ZKA-Labs/">ZKA Labs</a>
+          <a href="https://github.com/zeroknowledge0x/zk-playground">Source</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- PLAYGROUND -->
+    <div class="playground-wrap">
+      <div class="container">
+
+        <!-- Toolbar -->
+        <div class="pg-toolbar">
+          <select class="pg-select" id="pg-lang">
+            <option value="javascript">JavaScript</option>
+            <option value="python">Python</option>
+            <option value="html">HTML/CSS</option>
+            <option value="bash">Bash</option>
+          </select>
+          <button class="pg-btn pg-btn-run" id="pg-run">▶ Run</button>
+          <button class="pg-btn pg-btn-ai" id="pg-ai-btn">✦ Ask AI</button>
+          <button class="pg-btn pg-btn-save" id="pg-save">↓ Save</button>
+          <button class="pg-btn" id="pg-copy">⎘ Copy</button>
+          <button class="pg-btn pg-btn-clear" id="pg-clear">✕ Clear Output</button>
+          <span class="pg-rate" id="pg-rate"><strong>9</strong>/9 AI calls left</span>
+        </div>
+
+        <!-- Editor + Output -->
+        <div class="pg-main">
+          <div class="pg-editor-wrapper">
+            <div class="pg-gutter" id="pg-gutter">1</div>
+            <textarea class="pg-editor" id="pg-editor" spellcheck="false" placeholder="// Write your code here..."></textarea>
+          </div>
+          <div class="pg-output-wrapper">
+            <div class="pg-output-header">
+              <span class="pg-output-label" id="pg-output-label">Output</span>
+              <button class="pg-output-clear" id="pg-output-clear-btn">Clear</button>
+            </div>
+            <div class="pg-output" id="pg-output">
+              <span class="system">Click "Run" to execute your code.</span>
+            </div>
+            <iframe class="pg-preview" id="pg-preview" sandbox="allow-scripts"></iframe>
+          </div>
+        </div>
+
+        <!-- AI Chat Panel -->
+        <div class="pg-ai-panel" id="pg-ai-panel">
+          <div class="pg-ai-header">
+            <div class="pg-ai-title">✦ ZKA AI Assistant</div>
+            <button class="pg-ai-close" id="pg-ai-close">Close</button>
+          </div>
+          <div class="pg-ai-messages" id="pg-ai-messages"></div>
+          <div class="pg-ai-input-row">
+            <input type="text" class="pg-ai-input" id="pg-ai-input" placeholder="Ask about your code..." />
+            <button class="pg-ai-send" id="pg-ai-send">→</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+      <div class="container">
+        <div class="footer-inner">
+          <span class="footer-brand">ZK<span class="g">A</span> Playground &copy; 2026</span>
+          <div class="footer-links">
+            <a href="https://zeroknowledge0x.github.io/ZKA-Labs/">ZKA Labs</a>
+            <a href="https://github.com/zeroknowledge0x/zk-playground">GitHub</a>
+            <a href="https://twitter.com/zeroknowledge0x">Twitter</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    // ── CONFIG ──
+    const ZKA_API = 'https://api.zk0x.app';
+    const ZKA_KEY = 'zk-tested';
+    const PISTON_API = 'https://emkc.org/api/v2/piston/execute';
+
+    // ── STORAGE KEYS ──
+    const CODE_KEY = 'zka-pg-code';
+    const LANG_KEY = 'zka-pg-lang';
+    const CHAT_KEY = 'zka-pg-chat';
+    const RATE_KEY = 'zka-pg-rate';
+    const RATE_MAX = 9;
+    const RATE_WINDOW = 3 * 60 * 60 * 1000; // 3 hours
+
+    // ── PISTON VERSIONS ──
+    const PISTON_VERSIONS = {
+      javascript: { language: 'javascript', version: '18.15.0' },
+      python: { language: 'python', version: '3.10.0' },
+      bash: { language: 'bash', version: '5.2.15' }
+    };
+
+    // ── DEFAULT TEMPLATES ──
+    const TEMPLATES = {
+      javascript: `// JavaScript Playground\n// Write your code and click "Run"\n\nconsole.log("Hello from ZKA Playground!");\n\n// Try some math\nconst result = Array.from({length: 10}, (_, i) => i * i);\nconsole.log("Squares:", result);\n`,
+      python: `# Python Playground\n# Write your code and click "Run"\n\nprint("Hello from ZKA Playground!")\n\n# Try some list comprehension\nsquares = [i**2 for i in range(10)]\nprint(f"Squares: {squares}")\n`,
+      html: `<!-- HTML/CSS Playground -->\n<!-- Write your code and click "Run" to preview -->\n\n<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body {\n      font-family: system-ui;\n      display: flex;\n      align-items: center;\n      justify-content: center;\n      min-height: 100vh;\n      margin: 0;\n      background: #0a0a0a;\n      color: #00ff88;\n    }\n    h1 { font-size: 3rem; text-shadow: 0 0 20px rgba(0,255,136,0.5); }\n  </style>\n</head>\n<body>\n  <h1>Hello from ZKA!</h1>\n</body>\n</html>\n`,
+      bash: `#!/bin/bash\n# Bash Playground\n# Write your commands and click "Run"\n\necho "Hello from ZKA Playground!"\necho "Current date: $(date)"\necho "System: $(uname -s)"\n`
+    };
+
+    // ── DOM ELEMENTS ──
+    const editor = document.getElementById('pg-editor');
+    const gutter = document.getElementById('pg-gutter');
+    const output = document.getElementById('pg-output');
+    const outputLabel = document.getElementById('pg-output-label');
+    const preview = document.getElementById('pg-preview');
+    const langSelect = document.getElementById('pg-lang');
+    const runBtn = document.getElementById('pg-run');
+    const aiBtn = document.getElementById('pg-ai-btn');
+    const saveBtn = document.getElementById('pg-save');
+    const copyBtn = document.getElementById('pg-copy');
+    const clearBtn = document.getElementById('pg-clear');
+    const outputClearBtn = document.getElementById('pg-output-clear-btn');
+    const rateEl = document.getElementById('pg-rate');
+    const aiPanel = document.getElementById('pg-ai-panel');
+    const aiMessages = document.getElementById('pg-ai-messages');
+    const aiInput = document.getElementById('pg-ai-input');
+    const aiSendBtn = document.getElementById('pg-ai-send');
+    const aiCloseBtn = document.getElementById('pg-ai-close');
+
+    // ── LOADER ──
+    window.addEventListener('load', () => {
+      setTimeout(() => document.getElementById('loader').classList.add('hidden'), 1200);
+    });
+
+    // ── LINE NUMBERS ──
+    function updateGutter() {
+      const lines = editor.value.split('\n').length;
+      gutter.textContent = Array.from({length: lines}, (_, i) => i + 1).join('\n');
+    }
+    editor.addEventListener('input', updateGutter);
+    editor.addEventListener('scroll', () => { gutter.scrollTop = editor.scrollTop; });
+
+    // ── TAB SUPPORT ──
+    editor.addEventListener('keydown', e => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        editor.value = editor.value.substring(0, start) + '  ' + editor.value.substring(end);
+        editor.selectionStart = editor.selectionEnd = start + 2;
+        updateGutter();
+      }
+      // Ctrl/Cmd+Enter to run
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        runCode();
+      }
+    });
+
+    // ── LANGUAGE SWITCH ──
+    langSelect.addEventListener('change', () => {
+      const lang = langSelect.value;
+      localStorage.setItem(LANG_KEY, lang);
+      // Load template only if editor is empty or has a template
+      const code = editor.value.trim();
+      const isTemplate = Object.values(TEMPLATES).some(t => code === t.trim());
+      if (!code || isTemplate) {
+        editor.value = TEMPLATES[lang] || '';
+        saveCode();
+        updateGutter();
+      }
+      updateOutputLabel();
+    });
+
+    function updateOutputLabel() {
+      const lang = langSelect.value;
+      if (lang === 'html') {
+        outputLabel.textContent = 'Preview';
+      } else {
+        outputLabel.textContent = 'Output';
+      }
+    }
+
+    // ── SAVE / LOAD CODE ──
+    function saveCode() {
+      localStorage.setItem(CODE_KEY, editor.value);
+    }
+    editor.addEventListener('input', saveCode);
+
+    function loadCode() {
+      const saved = localStorage.getItem(CODE_KEY);
+      const lang = localStorage.getItem(LANG_KEY) || 'javascript';
+      langSelect.value = lang;
+      if (saved !== null && saved !== '') {
+        editor.value = saved;
+      } else {
+        editor.value = TEMPLATES[lang] || '';
+      }
+      updateGutter();
+      updateOutputLabel();
+    }
+
+    // ── OUTPUT ──
+    function logOutput(text, type = 'log') {
+      const span = document.createElement('span');
+      span.className = type;
+      span.textContent = text + '\n';
+      output.appendChild(span);
+      output.scrollTop = output.scrollHeight;
+    }
+    function clearOutput() {
+      output.innerHTML = '';
+      preview.style.display = 'none';
+      output.style.display = '';
+    }
+    function showPreview(htmlCode) {
+      output.style.display = 'none';
+      preview.style.display = 'block';
+      const blob = new Blob([htmlCode], { type: 'text/html' });
+      preview.src = URL.createObjectURL(blob);
+    }
+
+    // ── RUN CODE ──
+    async function runCode() {
+      const lang = langSelect.value;
+      const code = editor.value.trim();
+      if (!code) { logOutput('No code to run.', 'system'); return; }
+
+      clearOutput();
+      runBtn.disabled = true;
+      runBtn.textContent = '⟳ Running...';
+      logOutput(`Running ${lang}...`, 'system');
+
+      try {
+        if (lang === 'javascript') {
+          await runJavaScript(code);
+        } else if (lang === 'html') {
+          showPreview(code);
+          logOutput('Preview rendered.', 'success');
+        } else {
+          await runPiston(lang, code);
+        }
+      } catch (e) {
+        logOutput('Error: ' + e.message, 'error');
+      }
+
+      runBtn.disabled = false;
+      runBtn.textContent = '▶ Run';
+    }
+
+    // JavaScript execution (browser eval)
+    async function runJavaScript(code) {
+      const logs = [];
+      const origLog = console.log;
+      const origWarn = console.warn;
+      const origError = console.error;
+      const origInfo = console.info;
+
+      console.log = (...args) => logs.push({type: 'log', args});
+      console.warn = (...args) => logs.push({type: 'error', args: ['⚠ ' + args.join(' ')]});
+      console.error = (...args) => logs.push({type: 'error', args: ['✗ ' + args.join(' ')]});
+      console.info = (...args) => logs.push({type: 'system', args: ['ℹ ' + args.join(' ')]});
+
+      try {
+        const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+        const fn = new AsyncFunction(code);
+        const result = await fn();
+        if (result !== undefined) {
+          logOutput('→ ' + (typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result)), 'log');
+        }
+      } catch (e) {
+        logOutput('✗ ' + e.message, 'error');
+      }
+
+      console.log = origLog;
+      console.warn = origWarn;
+      console.error = origError;
+      console.info = origInfo;
+
+      logs.forEach(l => {
+        const text = l.args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ');
+        logOutput(text, l.type);
+      });
+    }
+
+    // Piston API execution (Python, Bash)
+    async function runPiston(lang, code) {
+      const pistonLang = PISTON_VERSIONS[lang];
+      if (!pistonLang) { logOutput('Unsupported language.', 'error'); return; }
+
+      const r = await fetch(PISTON_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          language: pistonLang.language,
+          version: pistonLang.version,
+          files: [{ content: code }]
+        })
+      });
+      const d = await r.json();
+
+      if (d.message) {
+        logOutput('Piston: ' + d.message, 'error');
+        return;
+      }
+
+      if (d.run) {
+        if (d.run.stdout) logOutput(d.run.stdout.trimEnd(), 'log');
+        if (d.run.stderr) logOutput(d.run.stderr.trimEnd(), 'error');
+        if (!d.run.stdout && !d.run.stderr) logOutput('(no output)', 'system');
+        if (d.run.code !== 0) logOutput(`Exit code: ${d.run.code}`, 'error');
+      }
+    }
+
+    // ── RATE LIMITING ──
+    function getRateData() {
+      try {
+        const d = JSON.parse(localStorage.getItem(RATE_KEY));
+        if (!d || !d.resetAt) return { count: 0, resetAt: Date.now() + RATE_WINDOW };
+        if (Date.now() > d.resetAt) return { count: 0, resetAt: Date.now() + RATE_WINDOW };
+        return d;
+      } catch { return { count: 0, resetAt: Date.now() + RATE_WINDOW }; }
+    }
+    function useRate() {
+      const d = getRateData();
+      if (d.count >= RATE_MAX) return false;
+      d.count++;
+      localStorage.setItem(RATE_KEY, JSON.stringify(d));
+      updateRateUI();
+      return true;
+    }
+    function updateRateUI() {
+      const d = getRateData();
+      const remaining = RATE_MAX - d.count;
+      rateEl.innerHTML = '<strong>' + remaining + '</strong>/' + RATE_MAX + ' AI calls left';
+      if (remaining <= 2) rateEl.querySelector('strong').style.color = '#f44';
+      else rateEl.querySelector('strong').style.color = '';
+    }
+
+    // ── AI CHAT ──
+    let aiChatHistory = [];
+    function loadAIHistory() {
+      try { aiChatHistory = JSON.parse(localStorage.getItem(CHAT_KEY)) || []; } catch { aiChatHistory = []; }
+      aiMessages.innerHTML = '';
+      aiChatHistory.forEach(m => renderAIBubble(m.role, m.content));
+    }
+    function saveAIHistory() {
+      localStorage.setItem(CHAT_KEY, JSON.stringify(aiChatHistory));
+    }
+    function renderAIBubble(role, text) {
+      const div = document.createElement('div');
+      div.className = 'pg-ai-bubble ' + (role === 'user' ? 'user' : 'assistant');
+      const label = document.createElement('div');
+      label.className = 'label';
+      label.textContent = role === 'user' ? 'You' : 'ZKA';
+      div.appendChild(label);
+      const body = document.createElement('div');
+      body.style.whiteSpace = 'pre-wrap';
+      body.style.wordBreak = 'break-word';
+      body.textContent = text;
+      div.appendChild(body);
+      aiMessages.appendChild(div);
+      aiMessages.scrollTop = aiMessages.scrollHeight;
+    }
+
+    async function askAI() {
+      const question = aiInput.value.trim();
+      if (!question) return;
+
+      if (!useRate()) {
+        const d = getRateData();
+        const waitMin = Math.ceil((d.resetAt - Date.now()) / 60000);
+        renderAIBubble('assistant', 'Rate limit reached. Try again in ~' + waitMin + ' minutes.');
+        return;
+      }
+
+      aiInput.value = '';
+      const code = editor.value.trim();
+      const lang = langSelect.value;
+
+      const fullQuestion = code
+        ? `I'm working on this ${lang} code:\n\`\`\`${lang}\n${code}\n\`\`\`\n\n${question}`
+        : question;
+
+      aiChatHistory.push({ role: 'user', content: question });
+      saveAIHistory();
+      renderAIBubble('user', question);
+
+      // Typing indicator
+      const typing = document.createElement('div');
+      typing.className = 'pg-ai-bubble assistant';
+      typing.innerHTML = '<div class="label">ZKA</div>Thinking...';
+      aiMessages.appendChild(typing);
+      aiMessages.scrollTop = aiMessages.scrollHeight;
+
+      aiSendBtn.disabled = true;
+
+      try {
+        const messages = [
+          { role: 'system', content: 'You are ZKA AI assistant. Help users with their code. Be concise, practical, and direct. Format code with proper indentation.' },
+          ...aiChatHistory.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
+        ];
+
+        const r = await fetch(ZKA_API + '/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ZKA_KEY },
+          body: JSON.stringify({ model: 'zk-v3z', messages, max_tokens: 1000 })
+        });
+        const d = await r.json();
+        typing.remove();
+
+        if (d.choices && d.choices[0]) {
+          const reply = d.choices[0].message.content;
+          aiChatHistory.push({ role: 'assistant', content: reply });
+          saveAIHistory();
+          renderAIBubble('assistant', reply);
+        } else {
+          renderAIBubble('assistant', 'Error: ' + JSON.stringify(d));
+        }
+      } catch (e) {
+        typing.remove();
+        renderAIBubble('assistant', 'Error: ' + e.message);
+      }
+
+      aiSendBtn.disabled = false;
+    }
+
+    // ── AI PANEL TOGGLE ──
+    aiBtn.addEventListener('click', () => {
+      aiPanel.classList.toggle('active');
+      if (aiPanel.classList.contains('active')) {
+        aiInput.focus();
+      }
+    });
+    aiCloseBtn.addEventListener('click', () => {
+      aiPanel.classList.remove('active');
+    });
+
+    // ── BUTTONS ──
+    runBtn.addEventListener('click', runCode);
+    clearBtn.addEventListener('click', clearOutput);
+    outputClearBtn.addEventListener('click', clearOutput);
+    saveBtn.addEventListener('click', () => {
+      const code = editor.value;
+      const lang = langSelect.value;
+      const ext = { javascript: 'js', python: 'py', html: 'html', bash: 'sh' }[lang] || 'txt';
+      const blob = new Blob([code], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `zka-code.${ext}`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(editor.value);
+      const orig = copyBtn.textContent;
+      copyBtn.textContent = '✓ Copied!';
+      setTimeout(() => copyBtn.textContent = orig, 1500);
+    });
+    aiSendBtn.addEventListener('click', askAI);
+    aiInput.addEventListener('keydown', e => { if (e.key === 'Enter') askAI(); });
+
+    // ── INIT ──
+    document.addEventListener('DOMContentLoaded', () => {
+      loadCode();
+      loadAIHistory();
+      updateRateUI();
+    });
+  </script>
+
+</body>
+</html>

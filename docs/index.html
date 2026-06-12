@@ -394,9 +394,10 @@
       const input = document.getElementById('input');
       const msg = input.value.trim();
       if (!msg || busy) return;
+      busy = true; // Lock IMMEDIATELY to prevent double-send
       input.value = ''; input.style.height = 'auto';
 
-      if (!useRL()) { addMsg('system', 'Rate limit. Try again later.'); return; }
+      if (!useRL()) { addMsg('system', 'Rate limit. Try again later.'); busy = false; return; }
 
       history.push({ role: 'user', content: msg });
       saveHistory();
@@ -417,7 +418,7 @@ Rules:
         ...history.map(m => ({ role: m.role === 'ai' ? 'assistant' : m.role, content: m.content }))
       ];
 
-      busy = true; setStatus('GENERATING...');
+      setStatus('GENERATING...');
       const typing = showTyping();
       document.getElementById('send-btn').disabled = true;
 
@@ -434,7 +435,7 @@ Rules:
         const r = await fetch(BASE + '/v1/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
-          body: JSON.stringify({ model: document.getElementById('model-sel').value, messages, max_tokens: 2000 }),
+          body: JSON.stringify({ model: document.getElementById('model-sel').value, messages, max_tokens: 4000 }),
           signal: controller.signal
         });
         clearTimeout(timeout);
@@ -445,10 +446,37 @@ Rules:
           addMsg('ai', '⚠️ ' + msg);
         } else if (d.choices && d.choices[0]) {
           const reply = d.choices[0].message.content;
+          const finish = d.choices[0].finish_reason;
           history.push({ role: 'ai', content: reply }); saveHistory();
           addMsg('ai', reply);
-          const m = reply.match(/```html\n([\s\S]*?)```/);
-          if (m) setPreview(m[1]);
+          // Extract HTML — handle both complete and truncated responses
+          let html = null;
+          const fullMatch = reply.match(/```html\n([\s\S]*?)```/);
+          if (fullMatch) {
+            html = fullMatch[1];
+          } else {
+            // Truncated: no closing ```, extract everything after ```html\n
+            const partialMatch = reply.match(/```html\n([\s\S]*)/);
+            if (partialMatch) {
+              html = partialMatch[1];
+              // Clean up any trailing ``` or text after code
+              const lastFence = html.lastIndexOf("```");
+              if (lastFence > 0) html = html.substring(0, lastFence);
+            } else if (reply.includes("<!DOCTYPE") || reply.includes("<html")) {
+              // Raw HTML without code block
+              html = reply;
+            }
+          }
+          if (html) {
+            html = html.trim();
+            // Verify it looks like valid HTML
+            if (html.includes("<html") || html.includes("<!DOCTYPE")) {
+              setPreview(html);
+              if (finish === "length") {
+                addMsg('system', '⚠️ Response was truncated. Preview may be incomplete.');
+              }
+            }
+          }
         } else {
           addMsg('ai', '⚠️ Unexpected response. Please try again.');
         }

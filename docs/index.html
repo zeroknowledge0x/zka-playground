@@ -417,16 +417,27 @@ Rules:
         ...history.map(m => ({ role: m.role === 'ai' ? 'assistant' : m.role, content: m.content }))
       ];
 
-      busy = true; setStatus('BUILDING...');
+      busy = true; setStatus('GENERATING...');
       const typing = showTyping();
       document.getElementById('send-btn').disabled = true;
 
+      // Show elapsed time
+      const startTime = Date.now();
+      const timer = setInterval(() => {
+        const sec = Math.floor((Date.now() - startTime) / 1000);
+        setStatus('GENERATING... ' + sec + 's');
+      }, 1000);
+
       try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 120000); // 2 min timeout
         const r = await fetch(BASE + '/v1/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
-          body: JSON.stringify({ model: document.getElementById('model-sel').value, messages, max_tokens: 4000 })
+          body: JSON.stringify({ model: document.getElementById('model-sel').value, messages, max_tokens: 2000 }),
+          signal: controller.signal
         });
+        clearTimeout(timeout);
         const d = await r.json();
         typing.remove();
         if (d.error) {
@@ -441,8 +452,17 @@ Rules:
         } else {
           addMsg('ai', '⚠️ Unexpected response. Please try again.');
         }
-      } catch (e) { typing.remove(); addMsg('ai', '⚠️ Network error. Please check your connection and try again.'); }
+      } catch (e) {
+        typing.remove();
+        clearInterval(timer);
+        if (e.name === 'AbortError') {
+          addMsg('ai', '⏱️ Request timed out. The AI took too long to respond. Try a simpler prompt or try again later.');
+        } else {
+          addMsg('ai', '⚠️ Network error. Please check your connection and try again.');
+        }
+      }
 
+      clearInterval(timer);
       busy = false; setStatus('IDLE');
       document.getElementById('send-btn').disabled = false;
     }

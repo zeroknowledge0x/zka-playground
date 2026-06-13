@@ -290,8 +290,9 @@ function showPreview(url) {
   document.getElementById('previewFrame').style.display = 'block';
 
   const iframe = document.getElementById('previewIframe');
-  if (iframe.src !== url) {
-    iframe.src = url;
+  const bustUrl = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
+  if (iframe.src !== bustUrl) {
+    iframe.src = bustUrl;
   }
   document.getElementById('urlBar').textContent = url.replace('https://', '');
 }
@@ -314,6 +315,15 @@ function showPreviewError(msg) {
 // ── Reset ──────────────────────────────────────────────
 function doReset() {
   if (!confirm('Reset everything? This will delete your current app and start fresh.')) return;
+
+  // Destroy sandbox on server first
+  const oldId = sandboxId;
+  if (oldId) {
+    fetch(API + '/v1/sandbox/' + oldId, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + KEY }
+    }).catch(() => {});
+  }
 
   sandboxId = '';
   sandboxUrl = '';
@@ -338,8 +348,9 @@ function doReset() {
   document.getElementById('previewError').style.display = 'none';
   document.getElementById('emptyState').style.display = 'flex';
 
-  // Clear iframe
-  document.getElementById('previewIframe').src = 'about:blank';
+  // Clear iframe with cache-busting
+  const iframe = document.getElementById('previewIframe');
+  iframe.src = 'about:blank';
 
   setStatus('IDLE', '');
 }

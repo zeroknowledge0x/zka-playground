@@ -35,6 +35,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .status.ready{color:var(--accent);background:rgba(200,255,0,0.08)}
 .status.building{color:#f0a030;background:rgba(240,160,48,0.08);animation:pulse 1.5s infinite}
 .status.error{color:#f44;background:rgba(255,68,68,0.08)}
+.model-select{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:2px 8px;font-size:11px;color:var(--text2);cursor:pointer;outline:none;font-family:var(--font);margin-left:auto}
+.model-select:focus{border-color:var(--accent)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 
 .chips{padding:10px 12px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border)}
@@ -125,6 +127,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <div class="sidebar" id="sidebar">
     <div class="sidebar-head">
       <div class="logo">🧪 <span>ZKA Labs</span></div>
+      <select id="modelSelect" class="model-select">
+        <option value="zk-v2b">⚡ Fast</option>
+        <option value="zk-v3z">🔥 Pro</option>
+        <option value="zk-v1b">💡 Lite</option>
+      </select>
       <div class="status" id="status">IDLE</div>
     </div>
     <div class="chips" id="chips">
@@ -273,7 +280,7 @@ async function doSend() {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + KEY
       },
-      body: JSON.stringify({prompt, model: 'zk-v3z'})
+      body: JSON.stringify({prompt, model: document.getElementById('modelSelect').value})
     });
 
     if (!resp.ok) {

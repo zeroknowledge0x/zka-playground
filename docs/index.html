@@ -140,10 +140,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <button id="sendBtn" onclick="doSend()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
-    </div>
-  </div>
-</div>
-<div class="mobile-tabs" id="mobileTabs">
+    </div><!-- /sidebar -->
+    <div class="mobile-tabs" id="mobileTabs">
   <button class="mobile-tab active" onclick="mobileTab('chat')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     Chat
@@ -166,7 +164,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
         <button class="tab" onclick="switchView('code')" id="tabCode">Code</button>
       </div>
       <div class="spacer"></div>
-      <div class="url-bar" id="urlBar">sandbox://idle</div>
+      <div class="url-bar" id="urlBar">zk://ready</div>
       <div class="spacer"></div>
       <button class="device-btn active" onclick="setDevice('desktop')" title="Desktop">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
@@ -187,7 +185,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div class="empty-state" id="emptyState">
         <div class="icon">⚡</div>
         <p>Describe your app in the chat and watch it come to life</p>
-        <div class="hint">Powered by MiMo AI + Vite Sandboxes</div>
+        <div class="hint">Powered by ZKA</div>
       </div>
     </div>
 
@@ -286,7 +284,7 @@ async function doSend() {
     sandboxUrl = sandbox.url || ('https://' + sandbox.id + '-preview.zk0x.app');
 
     thinkingMsg.textContent = 'Done! Your app is ready.';
-    addMsg('Preview: ' + sandboxUrl, 'system');
+    addMsg('Live at ' + sandboxUrl, 'system');
 
     // Show preview
     document.getElementById('emptyState').style.display = 'none';
@@ -298,7 +296,7 @@ async function doSend() {
     renderCodeView();
 
     setStatus('READY', 'ready');
-    chatHistory.push({role:'assistant', content:'App generated: ' + sandboxUrl});
+    chatHistory.push({role:'assistant', content:'App is live: ' + sandboxUrl});
 
     // Auto-switch to preview on mobile
     if (window.innerWidth <= 768) mobileTab('preview');

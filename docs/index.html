@@ -144,10 +144,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       </div>
       <div class="chat-messages" id="msgs"></div>
       <div class="chips" id="chips">
-        <button class="chip" onclick="useChip(this)" data-p="Build a responsive portfolio site with hero, skills grid, project cards, contact form. Dark theme. Split into index.html, style.css, app.js."><span class="chip-title">PORTFOLIO</span>Hero + skills + projects + contact</button>
-        <button class="chip" onclick="useChip(this)" data-p="Build a task management app with CRUD, priority levels, filters, progress bar. localStorage. Split into index.html, style.css, app.js."><span class="chip-title">TASK MANAGER</span>CRUD + priorities + filters</button>
-        <button class="chip" onclick="useChip(this)" data-p="Build a weather dashboard with city input, temperature, forecast cards. Split into index.html, style.css, app.js."><span class="chip-title">WEATHER</span>City search + forecast</button>
-        <button class="chip" onclick="useChip(this)" data-p="Build a restaurant page with menu, gallery, reservation form. Split into index.html, style.css, app.js."><span class="chip-title">RESTAURANT</span>Menu + gallery + reservations</button>
+        <button class="chip" onclick="useChip(this)" data-p="Build a responsive portfolio site with hero, skills grid, project cards, contact form. Dark theme with gradient accents."><span class="chip-title">PORTFOLIO</span>Hero + skills + projects + contact</button>
+        <button class="chip" onclick="useChip(this)" data-p="Build a task management app with CRUD, priority levels, filters, progress bar. Persist to localStorage."><span class="chip-title">TASK MANAGER</span>CRUD + priorities + filters</button>
+        <button class="chip" onclick="useChip(this)" data-p="Build a weather dashboard with city input, temperature, humidity, wind, 5-day forecast cards."><span class="chip-title">WEATHER</span>City search + forecast</button>
+        <button class="chip" onclick="useChip(this)" data-p="Build a restaurant page with hero, menu categories with prices, photo gallery, reservation form, reviews."><span class="chip-title">RESTAURANT</span>Menu + gallery + reservations</button>
       </div>
       <div class="chat-input-area">
         <div class="chat-input-wrap">
@@ -244,18 +244,18 @@ async function doSend() {
   setStatus('gen');
 
   const model = document.getElementById('modelSel').value;
-  // Build system prompt with escaped JSON example
-  const ex = '{"files":{"index.html":"<!DOCTYPE html>...","style.css":"body{}","app.js":"// code"}}';
-  const sys = "You are a web developer. Generate a multi-file project as JSON.\n\n"
-    + "OUTPUT FORMAT - return ONLY this JSON, nothing else:\n" + ex + "\n\n"
-    + "IMPORTANT RULES:\n"
-    + "- Return ONLY the JSON object. No explanations, no markdown fences, no code blocks.\n"
-    + "- The JSON must have a \"files\" key with filename:content pairs\n"
-    + "- Each file content is a single string with escaped quotes (\\\") and newlines (\\n)\n"
-    + "- index.html must reference style.css via link tag and app.js via script tag\n"
-    + "- Use modern CSS (flexbox/grid), responsive, vanilla JS\n"
+  // Build system prompt - ask for single HTML with inline CSS/JS (auto-split later)
+  const sys = "You are an expert web developer. Generate a complete, production-quality single HTML file.\n\n"
+    + "RULES:\n"
+    + "- Return ONLY the HTML file. No explanations, no markdown, no code fences.\n"
+    + "- ALL CSS must be inside <style> tags in the <head>\n"
+    + "- ALL JavaScript must be inside <script> tags before </body>\n"
+    + "- Use modern CSS (flexbox/grid, variables, responsive)\n"
+    + "- Use vanilla JS (no frameworks), ES6+\n"
     + "- Include realistic sample content\n"
-    + "- Generate 2-5 files";
+    + "- Make it look professional with good typography, spacing, colors\n"
+    + "- Smooth transitions and subtle animations\n"
+    + "- The page must work immediately when opened in a browser";
 
   try {
     const ctrl = new AbortController();
@@ -303,10 +303,9 @@ async function doSend() {
 function parseFiles(text) {
   let clean = text.trim();
   // Strip markdown fences
-  const fence = clean.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
+  const fence = clean.match(/```(?:html)?\s*\n?([\s\S]*?)```/);
   if (fence) clean = fence[1].trim();
-
-  // Try JSON parse first
+  // Strip JSON wrapper if AI returned JSON anyway
   const jm = clean.match(/\{[\s\S]*\}/);
   if (jm) {
     try {
@@ -319,31 +318,17 @@ function parseFiles(text) {
         if (Object.keys(f).length) return f;
       }
     } catch {}
-    // Try fixing truncated JSON
-    try {
-      let fixed = jm[0];
-      if (!fixed.endsWith('}')) fixed += '"}}}';
-      const obj = JSON.parse(fixed);
-      if (obj.files) {
-        const f = {};
-        for (const [k, v] of Object.entries(obj.files)) {
-          if (typeof v === 'string') f[k] = v;
-        }
-        if (Object.keys(f).length) return f;
-      }
-    } catch {}
   }
-
-  // Fallback: raw HTML
+  // Unescape literal \n if AI returned escaped
   let html = clean;
-  // Unescape literal \n if present (AI returned escaped HTML)
   if (html.includes('\\n') && !html.includes('\n')) {
     html = html.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
   }
+  // Extract HTML and split into files
   const hm = html.match(/<!DOCTYPE[\s\S]*<\/html>/i) || html.match(/<html[\s\S]*<\/html>/i);
   if (hm) return splitHTML(hm[0]);
-  // Last resort: wrap in HTML
-  if (html.includes('<') && html.length > 50) return { 'index.html': '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' + html + '</body></html>' };
+  // Last resort
+  if (html.includes('<') && html.length > 50) return splitHTML('<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' + html + '</body></html>');
   return { 'index.html': html };
 }
 
@@ -393,22 +378,21 @@ function selectFile(p) {
 
 // Preview
 function renderPreview() {
-  const html = files['index.html'] || '';
+  let html = files['index.html'] || '';
   if (!html) return;
-  let combined = html;
-  // Inline CSS
-  if (files['style.css']) {
-    combined = combined.replace('</head>', '<sty' + 'le>' + files['style.css'] + '</sty' + 'le></head>');
+  // If we have separate CSS/JS files, inline them into the HTML for preview
+  if (files['style.css'] && !html.includes('<style')) {
+    html = html.replace('</head>', '<sty' + 'le>' + files['style.css'] + '</sty' + 'le></head>');
   }
-  // Inline JS files
   for (const [p, c] of Object.entries(files)) {
     if (p.endsWith('.js') && p !== 'index.html') {
-      combined = combined.replace('<scr' + 'ipt src="' + p + '"></scr' + 'ipt>', '<scr' + 'ipt>' + c + '</scr' + 'ipt>');
+      const tag = '<scr' + 'ipt src="' + p + '"></scr' + 'ipt>';
+      if (html.includes(tag)) html = html.replace(tag, '<scr' + 'ipt>' + c + '</scr' + 'ipt>');
     }
   }
   document.getElementById('empty').style.display = 'none';
   document.getElementById('frame').style.display = '';
-  document.getElementById('frame').srcdoc = combined;
+  document.getElementById('frame').srcdoc = html;
 }
 
 // Tabs

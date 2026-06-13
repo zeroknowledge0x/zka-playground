@@ -251,8 +251,6 @@ async function doSend() {
     + "Include animations. Must work when opened directly in browser.";
 
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 90000);
 
     const res = await fetch(P + '/v1/chat/completions', {
       method: 'POST',
@@ -260,32 +258,69 @@ async function doSend() {
       body: JSON.stringify({
         model,
         messages: [{ role: 'system', content: sys }, { role: 'user', content: text }],
-        max_tokens: 3000,
-        stream: false
-      }),
-      signal: ctrl.signal
+        max_tokens: 6000,
+        stream: true
+      })
     });
-    clearTimeout(timer);
 
     if (!res.ok) throw new Error('API error ' + res.status);
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content || '';
-    if (!content) throw new Error('Empty response');
 
-    const parsed = parseFiles(content);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullContent = '';
+    let lastPreview = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') continue;
+
+        try {
+          const chunk = JSON.parse(data);
+          const delta = chunk.choices?.[0]?.delta?.content || '';
+          if (delta) fullContent += delta;
+        } catch {}
+
+        // Update preview every 500ms
+        const now = Date.now();
+        if (fullContent && now - lastPreview > 500) {
+          lastPreview = now;
+          const cleaned = stripThinking(fullContent);
+          const partialHtml = extractHtml(cleaned);
+          if (partialHtml) {
+            document.getElementById('prevFrame').srcdoc = partialHtml;
+            switchTab('preview');
+          }
+        }
+      }
+    }
+
+    // Final parse
+    const cleaned = stripThinking(fullContent);
+    if (!cleaned.trim()) throw new Error('Empty response');
+
+    const parsed = parseFiles(cleaned);
     files = parsed;
     renderTree();
     selectFile(Object.keys(parsed)[0]);
     renderPreview();
     document.getElementById('fileNum').textContent = 'FILES ' + Object.keys(parsed).length;
-    const elapsed = data.usage ? '' : '';
     document.getElementById('genTime').textContent = Object.keys(parsed).length + ' files';
     setStatus('ok');
     addMsg('assistant', 'Generated ' + Object.keys(parsed).length + ' files: ' + Object.keys(parsed).join(', '));
     document.getElementById('dlBtn').style.display = '';
   } catch (e) {
-    const msg = e.name === 'AbortError'
-      ? '⏱️ Generation took too long (Cloudflare 100s limit). Try a simpler prompt or zk-v2b (faster).'
+    const msg = e.name === 'TypeError' && e.message.includes('fetch')
+      ? '⏱️ Network timeout. Try again or use zk-v2b (faster).'
       : 'Error: ' + e.message;
     addMsg('error', msg);
     setStatus('err');
@@ -294,6 +329,21 @@ async function doSend() {
     sendBtn.disabled = !chatIn.value.trim();
     if (!Object.keys(files).length) setStatus('idle');
   }
+}
+
+function stripThinking(text) {
+  return text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<think>[\s\S]*$/gi, '').trim();
+}
+
+function extractHtml(text) {
+  // Try to extract a partial HTML document from accumulated stream
+  const start = text.indexOf('<!DOCTYPE') !== -1 ? text.indexOf('<!DOCTYPE') : text.indexOf('<html');
+  if (start === -1) return null;
+  let html = text.slice(start);
+  // Add closing tags if not yet present for valid rendering
+  if (!html.includes('</html>')) html += '\n</body></html>';
+  if (!html.includes('<meta charset')) html = '<meta charset="utf-8">' + html;
+  return html;
 }
 
 function parseFiles(text) {

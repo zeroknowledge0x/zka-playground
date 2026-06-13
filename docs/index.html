@@ -83,7 +83,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .preview-empty svg{width:32px;height:32px;opacity:.15}
 
 /* CODE */
-.code-body{flex:1;display:none;overflow:hidden}
+.code-body{display:none;position:absolute;inset:0;z-index:10;background:var(--bg);overflow:hidden}
 .code-layout{display:flex;height:100%}
 .code-sidebar{width:200px;border-right:1px solid var(--border);background:var(--bg-panel);overflow-y:auto;flex-shrink:0}
 .code-sidebar-title{padding:10px 12px 6px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dimmer);border-bottom:1px solid var(--border)}

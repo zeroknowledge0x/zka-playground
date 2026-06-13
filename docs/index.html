@@ -1,559 +1,413 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ZKA Playground — Build apps with AI, free</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<title>ZKA Playground</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>⚡</text></svg>">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#000;--bg-panel:#0a0a0a;--bg-surface:#111;--bg-input:#0d0d0d;--border:#1a1a1a;--text:#e5e5e5;--text-dim:#666;--text-dimmer:#444;--accent:#c8ff00;--accent-dim:rgba(200,255,0,.12);--red:#ff4444;--font-mono:'SF Mono','Cascadia Code','Fira Code',Consolas,monospace}
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:13px;overflow:hidden}
+:root{
+  --bg:#0a0a0a;--surface:#111;--surface2:#1a1a1a;--border:#222;
+  --text:#e8e8e8;--text2:#888;--text3:#555;
+  --accent:#c8ff00;--accent2:#a8d600;
+  --radius:10px;--radius-sm:6px;
+  --sidebar:340px;
+  --font:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;
+  --mono:'SF Mono','Cascadia Code','Fira Code','Consolas',monospace;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font)}
 ::selection{background:var(--accent);color:#000}
-::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
 
-.app{display:flex;flex-direction:column;height:100dvh;height:100vh}
+/* LAYOUT */
+.app{display:flex;height:100vh;overflow:hidden}
 
-.navbar{display:flex;align-items:center;gap:12px;padding:0 16px;height:44px;border-bottom:1px solid var(--border);background:var(--bg);flex-shrink:0;z-index:100}
-.nav-brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);text-decoration:none}
-.nav-brand svg{width:16px;height:16px}
-.nav-sep{width:1px;height:20px;background:var(--border)}
-.nav-status{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim)}
-.dot{width:6px;height:6px;border-radius:50%;background:#333}
-.dot.on{background:var(--accent);box-shadow:0 0 6px var(--accent)}
-.dot.err{background:var(--red)}
-.nav-model{margin-left:auto;padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:var(--bg-input);color:var(--text);font-family:var(--font-mono);font-size:10px;cursor:pointer}
-.nav-links{display:flex;align-items:center;gap:16px;margin-left:16px}
-.nav-link{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);text-decoration:none}
-.nav-link:hover{color:var(--text)}
-.nav-btn{padding:5px 14px;border:1px solid var(--accent);border-radius:4px;background:transparent;color:var(--accent);font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
-.nav-btn:hover{background:var(--accent-dim)}
+/* SIDEBAR */
+.sidebar{width:var(--sidebar);min-width:var(--sidebar);display:flex;flex-direction:column;border-right:1px solid var(--border);background:var(--surface)}
+.sidebar-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.logo{font-weight:700;font-size:15px;letter-spacing:-0.3px;display:flex;align-items:center;gap:6px}
+.logo span{color:var(--accent)}
+.status{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--surface2);color:var(--text3);margin-left:auto;font-family:var(--mono)}
+.status.ready{color:var(--accent);background:rgba(200,255,0,0.08)}
+.status.building{color:#f0a030;background:rgba(240,160,48,0.08);animation:pulse 1.5s infinite}
+.status.error{color:#f44;background:rgba(255,68,68,0.08)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 
-.main{display:flex;flex:1;overflow:hidden}
+.chips{padding:10px 12px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border)}
+.chip{padding:6px 12px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:12px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.chip:hover{border-color:var(--accent);color:var(--accent);background:rgba(200,255,0,0.04)}
 
-/* CHAT */
-.chat-panel{width:360px;min-width:300px;display:flex;flex-direction:column;border-right:1px solid var(--border);background:var(--bg-panel)}
-.chat-header{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)}
-.chat-tab{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);cursor:pointer;padding:3px 8px;border-radius:3px}
-.chat-tab.active{color:var(--text);background:rgba(255,255,255,.05)}
-.chat-idle{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dimmer);margin-left:auto}
-.chat-messages{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
-.msg{font-size:12px;line-height:1.6;padding:8px 10px;border-radius:6px;word-break:break-word;white-space:pre-wrap}
-.msg.user{background:rgba(255,255,255,.04);border:1px solid var(--border);align-self:flex-end;max-width:90%}
-.msg.assistant{color:var(--text-dim);align-self:flex-start}
-.msg.error{color:var(--red);font-size:11px;border:1px solid rgba(255,68,68,.2);background:rgba(255,68,68,.05)}
+.chat{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:90%;padding:10px 14px;border-radius:var(--radius);font-size:13px;line-height:1.5;word-break:break-word;animation:fadeUp .25s ease}
+.msg.user{align-self:flex-end;background:var(--accent);color:#000;border-bottom-right-radius:3px}
+.msg.ai{align-self:flex-start;background:var(--surface2);color:var(--text);border-bottom-left-radius:3px}
+.msg.ai.error{border:1px solid rgba(255,68,68,0.3);color:#f88}
+.msg.system{align-self:center;color:var(--text3);font-size:11px;padding:4px 0}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
-.chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 10px}
-.chip{padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:rgba(255,255,255,.02);color:var(--text-dim);font-size:11px;line-height:1.4;cursor:pointer}
-.chip:hover{border-color:var(--text-dim);color:var(--text)}
-.chip-title{font-weight:600;color:var(--text);font-size:10px;letter-spacing:.04em;display:block;margin-bottom:2px}
+.chat-input{padding:12px;border-top:1px solid var(--border);display:flex;gap:8px}
+.chat-input input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);font-size:13px;outline:none;transition:border .15s;font-family:var(--font)}
+.chat-input input:focus{border-color:var(--accent)}
+.chat-input input::placeholder{color:var(--text3)}
+.chat-input button{width:40px;height:40px;border-radius:var(--radius);border:none;background:var(--accent);color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.chat-input button:hover{background:var(--accent2)}
+.chat-input button:disabled{opacity:.3;cursor:not-allowed}
+.chat-input button svg{width:18px;height:18px}
 
-.chat-input-area{border-top:1px solid var(--border);padding:10px 14px}
-.chat-input-wrap{display:flex;gap:8px;align-items:flex-end}
-.chat-input{flex:1;min-height:38px;max-height:120px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input);color:var(--text);font-family:var(--font-mono);font-size:12px;resize:none;outline:none;line-height:1.5}
-.chat-input:focus{border-color:var(--text-dim)}
-.chat-input::placeholder{color:var(--text-dimmer)}
-.chat-send{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-dim);cursor:pointer;flex-shrink:0}
-.chat-send:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
-.chat-send:disabled{opacity:.3;cursor:not-allowed}
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.main-head{height:44px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:8px;background:var(--surface)}
+.tab-group{display:flex;gap:2px;background:var(--surface2);border-radius:var(--radius-sm);padding:2px}
+.tab{padding:5px 14px;border-radius:4px;font-size:12px;color:var(--text3);cursor:pointer;transition:all .15s;border:none;background:none;font-family:var(--font)}
+.tab.active{background:var(--border);color:var(--text)}
+.tab:hover:not(.active){color:var(--text2)}
+.main-head .spacer{flex:1}
+.device-btn{width:30px;height:30px;border-radius:var(--radius-sm);border:1px solid var(--border);background:none;color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.device-btn:hover,.device-btn.active{border-color:var(--accent);color:var(--accent)}
+.device-btn svg{width:16px;height:16px}
+.url-bar{flex:1;height:28px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0 10px;font-size:11px;color:var(--text2);font-family:var(--mono);display:flex;align-items:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 
-/* PREVIEW + CODE */
-.preview-panel{flex:1;display:flex;flex-direction:column;background:var(--bg)}
-.preview-header{display:flex;align-items:center;padding:0 14px;height:36px;border-bottom:1px solid var(--border);flex-shrink:0}
-.preview-tab{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dimmer);cursor:pointer;padding:8px 12px;border-bottom:2px solid transparent}
-.preview-tab:hover{color:var(--text-dim)}
-.preview-tab.active{color:var(--text);border-bottom-color:var(--text)}
-.preview-meta{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:10px;color:var(--text-dimmer)}
-.preview-responsive{display:flex;gap:2px;margin-left:8px}
-.preview-responsive button{padding:3px 6px;border:1px solid transparent;border-radius:3px;background:transparent;color:var(--text-dimmer);font-size:11px;cursor:pointer}
-.preview-responsive button.active{color:var(--text);background:rgba(255,255,255,.05);border-color:var(--border)}
-.preview-action{padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--text-dim);font-family:var(--font-mono);font-size:9px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+/* PREVIEW */
+.preview-area{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#0d0d0d;position:relative}
+.preview-frame{background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 0 40px rgba(0,0,0,0.5);transition:width .3s,height .3s}
+.preview-frame iframe{width:100%;height:100%;border:none;display:block}
+.preview-frame.full{width:100%;height:100%;border-radius:0}
+.preview-frame.desktop{width:100%;height:100%;border-radius:0}
+.preview-frame.tablet{width:768px;height:calc(100% - 40px);border-radius:12px}
+.preview-frame.mobile{width:375px;height:calc(100% - 40px);border-radius:24px;border:3px solid #333}
 
-.preview-body{flex:1;position:relative;overflow:hidden}
-.frame-wrap{display:flex;justify-content:center;align-items:flex-start;height:100%;overflow:auto;background:#0d0d0d}
-.frame-wrap.mobile{padding:20px}
-.frame-wrap.mobile iframe{width:375px;height:667px;border-radius:24px;border:3px solid #333}
-.frame-wrap.tablet{padding:16px}
-.frame-wrap.tablet iframe{width:768px;height:100%;border-radius:12px;border:2px solid #222}
-.frame-wrap.desktop iframe{width:100%;height:100%;border:none}
-.preview-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--text-dimmer);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
-.preview-empty svg{width:32px;height:32px;opacity:.15}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:var(--text3);text-align:center;padding:40px}
+.empty-state .icon{font-size:48px;opacity:.3}
+.empty-state p{font-size:14px;max-width:300px;line-height:1.5}
+.empty-state .hint{font-size:12px;color:var(--text3);opacity:.5}
 
-/* CODE */
-.code-body{display:none;position:absolute;inset:0;z-index:10;background:var(--bg);overflow:hidden}
-.code-layout{display:flex;height:100%}
-.code-sidebar{width:200px;border-right:1px solid var(--border);background:var(--bg-panel);overflow-y:auto;flex-shrink:0}
-.code-sidebar-title{padding:10px 12px 6px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dimmer);border-bottom:1px solid var(--border)}
-.file-item{display:flex;align-items:center;gap:6px;padding:5px 12px;font-size:11px;color:var(--text-dim);cursor:pointer;border-left:2px solid transparent}
-.file-item:hover{background:rgba(255,255,255,.03);color:var(--text)}
-.file-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(200,255,0,.04)}
+/* CODE VIEW */
+.code-area{flex:1;display:none;overflow:hidden}
+.code-area.visible{display:flex}
+.code-sidebar{width:180px;border-right:1px solid var(--border);overflow-y:auto;background:var(--surface);padding:8px 0}
+.file-item{padding:8px 14px;font-size:12px;color:var(--text3);cursor:pointer;font-family:var(--mono);transition:all .15s;display:flex;align-items:center;gap:6px}
+.file-item:hover{color:var(--text2);background:var(--surface2)}
+.file-item.active{color:var(--accent);background:rgba(200,255,0,0.04);border-right:2px solid var(--accent)}
 .file-icon{font-size:10px;opacity:.5}
-.code-viewer{flex:1;overflow:auto;padding:16px 20px;background:var(--bg)}
-.code-path{font-size:10px;color:var(--text-dimmer);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)}
-.code-content{font-size:12px;line-height:1.7;color:var(--text-dim);white-space:pre;word-break:break-word;font-family:var(--font-mono);tab-size:2;overflow-x:auto}
-.code-content .ln{display:inline-block;width:40px;text-align:right;padding-right:14px;color:var(--text-dimmer);opacity:.35;user-select:none}
+.code-content{flex:1;overflow:auto;background:#0d0d0d;padding:16px}
+.code-content pre{font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--text2);white-space:pre-wrap;word-break:break-word;tab-size:2}
+.code-content .line{display:flex}
+.code-content .ln{color:var(--text3);min-width:40px;text-align:right;padding-right:16px;user-select:none;opacity:.4}
+.code-content .lc{flex:1}
 
-.gen-bar{height:2px;background:var(--bg);overflow:hidden;position:relative}
-.gen-bar.on::after{content:'';position:absolute;left:-40%;width:40%;height:100%;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:slide 1.2s ease-in-out infinite}
-@keyframes slide{to{left:100%}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.blink{animation:pulse 1.5s ease-in-out infinite}
-
-/* Mobile tab bar */
-.mobile-tabs{display:none;position:fixed;bottom:0;left:0;right:0;z-index:300;background:var(--bg-panel);border-top:1px solid var(--border);padding:6px 10px env(safe-area-inset-bottom,6px);justify-content:center;gap:6px}
-.mobile-tabs button{flex:1;max-width:160px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-dim);font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
-.mobile-tabs button.active{color:var(--accent);border-color:var(--accent);background:var(--accent-dim)}
-
+/* MOBILE */
 @media(max-width:768px){
-  .main{flex-direction:column}
-  .chat-panel{width:100%;border-right:none;border-bottom:none;max-height:none;flex:1}
-  .preview-panel{display:none;flex:1}
-  .preview-panel.mobile-show{display:flex;position:fixed;inset:0;z-index:200}
-  .nav-links{display:none}
-  .code-sidebar{width:140px}
-  .mobile-tabs{display:flex!important}
-  .nav-model{display:none}
-}
-@media(max-width:480px){
-  .navbar{padding:0 10px;gap:8px}
+  .app{flex-direction:column}
+  .sidebar{width:100%;min-width:100%;height:100%;position:absolute;z-index:10;transition:transform .25s}
+  .sidebar.hidden{transform:translateX(-100%)}
+  .main{width:100%}
+  .mobile-tabs{display:flex!important;height:48px;border-top:1px solid var(--border);background:var(--surface)}
+  .mobile-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--text3);cursor:pointer;transition:all .15s;border:none;background:none;font-family:var(--font)}
+  .mobile-tab.active{color:var(--accent);background:rgba(200,255,0,0.04)}
+  .mobile-tab svg{width:16px;height:16px}
+  .preview-frame.tablet,.preview-frame.mobile{width:100%;height:100%;border-radius:0;border:none}
   .code-sidebar{width:120px}
-  .mobile-tabs button{font-size:9px;padding:6px 10px}
 }
+.mobile-tabs{display:none}
 </style>
 </head>
 <body>
 <div class="app">
-  <nav class="navbar">
-    <span class="nav-brand">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/></svg>
-      ZKA PLAYGROUND
-    </span>
-    <div class="nav-sep"></div>
-    <div class="nav-status"><span class="dot" id="dot"></span><span id="statusTxt">IDLE</span></div>
-    <select class="nav-model" id="modelSel">
-      <option value="zk-v3z">ZK-V3Z (FLAGSHIP)</option>
-      <option value="zk-v2b">ZK-V2B (FAST)</option>
-      <option value="zk-v1b">ZK-V1B (LITE)</option>
-    </select>
-    <div class="nav-links">
-      <a class="nav-link" href="https://zka-labs.github.io" target="_blank">LABS</a>
-      <a class="nav-link" href="https://zeroknowledge0x.github.io/zk-api" target="_blank">API</a>
-      <button class="nav-btn" onclick="newProject()">NEW PROJECT</button>
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <div class="logo">⚡ <span>ZKA</span> Playground</div>
+      <div class="status" id="status">IDLE</div>
     </div>
-  </nav>
-  <div class="gen-bar" id="genBar"></div>
+    <div class="chips" id="chips">
+      <div class="chip" data-prompt="A modern portfolio with hero section, projects grid, and contact form">Portfolio</div>
+      <div class="chip" data-prompt="A task manager app with add, delete, mark complete, and filter by status">Task Manager</div>
+      <div class="chip" data-prompt="A weather dashboard with city search, 5-day forecast cards, and temperature chart">Weather App</div>
+      <div class="chip" data-prompt="A restaurant menu page with food categories, item cards with prices, and an order cart">Restaurant</div>
+      <div class="chip" data-prompt="A pomodoro timer with work/break sessions, sound notification, and session counter">Pomodoro</div>
+      <div class="chip" data-prompt="A kanban board with drag-and-drop columns: To Do, In Progress, Done">Kanban</div>
+    </div>
+    <div class="chat" id="chat">
+      <div class="msg system">Describe what you want to build</div>
+    </div>
+    <div class="chat-input">
+      <input type="text" id="promptInput" placeholder="Describe your app..." autocomplete="off">
+      <button id="sendBtn" onclick="doSend()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+    <div class="mobile-tabs">
+      <button class="mobile-tab active" onclick="mobileTab('chat')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Chat
+      </button>
+      <button class="mobile-tab" onclick="mobileTab('preview')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        Preview
+      </button>
+      <button class="mobile-tab" onclick="mobileTab('code')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Code
+      </button>
+    </div>
+  </div>
 
+  <!-- MAIN -->
   <div class="main">
-    <div class="chat-panel">
-      <div class="chat-header">
-        <span class="chat-tab active">CHAT</span>
-        <span class="chat-idle" id="chatIdle">IDLE</span>
+    <div class="main-head">
+      <div class="tab-group">
+        <button class="tab active" onclick="switchView('preview')" id="tabPreview">Preview</button>
+        <button class="tab" onclick="switchView('code')" id="tabCode">Code</button>
       </div>
-      <div class="chat-messages" id="msgs"></div>
-      <div class="chips" id="chips">
-        <button class="chip" onclick="useChip(this)" data-p="Build a responsive portfolio site with hero, skills grid, project cards, contact form. Dark theme with gradient accents."><span class="chip-title">PORTFOLIO</span>Hero + skills + projects + contact</button>
-        <button class="chip" onclick="useChip(this)" data-p="Build a task management app with CRUD, priority levels, filters, progress bar. Persist to localStorage."><span class="chip-title">TASK MANAGER</span>CRUD + priorities + filters</button>
-        <button class="chip" onclick="useChip(this)" data-p="Build a weather dashboard with city input, temperature, humidity, wind, 5-day forecast cards."><span class="chip-title">WEATHER</span>City search + forecast</button>
-        <button class="chip" onclick="useChip(this)" data-p="Build a restaurant page with hero, menu categories with prices, photo gallery, reservation form, reviews."><span class="chip-title">RESTAURANT</span>Menu + gallery + reservations</button>
+      <div class="spacer"></div>
+      <div class="url-bar" id="urlBar">sandbox://idle</div>
+      <div class="spacer"></div>
+      <button class="device-btn active" onclick="setDevice('desktop')" title="Desktop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      </button>
+      <button class="device-btn" onclick="setDevice('tablet')" title="Tablet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
+      </button>
+      <button class="device-btn" onclick="setDevice('mobile')" title="Mobile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- PREVIEW VIEW -->
+    <div class="preview-area" id="previewArea">
+      <div class="preview-frame full" id="previewFrame">
+        <iframe id="previewIframe" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
       </div>
-      <div class="chat-input-area">
-        <div class="chat-input-wrap">
-          <textarea class="chat-input" id="chatIn" placeholder="Describe what to build..." rows="1" maxlength="5000"></textarea>
-          <button class="chat-send" id="sendBtn" disabled>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
-        </div>
+      <div class="empty-state" id="emptyState">
+        <div class="icon">⚡</div>
+        <p>Describe your app in the chat and watch it come to life</p>
+        <div class="hint">Powered by MiMo AI + Vite Sandboxes</div>
       </div>
     </div>
 
-    <div class="preview-panel">
-      <div class="preview-header">
-        <span class="preview-tab active" data-t="preview" onclick="switchTab('preview')">PREVIEW</span>
-        <span class="preview-tab" data-t="code" onclick="switchTab('code')">CODE</span>
-        <div class="preview-meta">
-          <span id="fileNum">FILES 0</span>
-          <span id="genTime"></span>
-        </div>
-        <div class="preview-responsive">
-          <button class="active" data-m="desktop" onclick="setMode('desktop')">🖥</button>
-          <button data-m="tablet" onclick="setMode('tablet')">📱</button>
-          <button data-m="mobile" onclick="setMode('mobile')">📲</button>
-        </div>
-        <button class="preview-action" onclick="downloadZip()" id="dlBtn" style="display:none;margin-left:8px">↓ ZIP</button>
-      </div>
-
-      <div class="preview-body">
-        <div class="frame-wrap desktop" id="frameWrap">
-          <iframe id="frame" sandbox="allow-scripts allow-modals" title="Preview"></iframe>
-        </div>
-        <div class="preview-empty" id="empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          <span>WAITING FOR BUILD</span>
-          <span style="font-size:9px;opacity:.5">Send a prompt to start</span>
-        </div>
-        <div class="code-body" id="codeBody">
-          <div class="code-layout">
-            <div class="code-sidebar" id="sidebar"><div class="code-sidebar-title">FILES</div></div>
-            <div class="code-viewer">
-              <div class="code-path" id="codePath">—</div>
-              <div class="code-content" id="codeContent"></div>
-            </div>
-          </div>
+    <!-- CODE VIEW -->
+    <div class="code-area" id="codeArea">
+      <div class="code-sidebar" id="codeSidebar"></div>
+      <div class="code-content" id="codeContent">
+        <div class="empty-state">
+          <div class="icon">{ }</div>
+          <p>Generate an app to view its source code</p>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Mobile bottom tabs -->
-<div class="mobile-tabs" id="mobileTabs">
-  <button class="active" onclick="mobileView('chat',this)">💬 CHAT</button>
-  <button onclick="mobileView('preview',this)">👁 PREVIEW</button>
-  <button onclick="mobileView('code',this)">📝 CODE</button>
-</div>
-
 <script>
-const P = 'https://api.zk0x.app';
-const K = 'zk-pla' + 'yground-public-2024';
-let busy = false, files = {}, activeFile = '', activeSandbox = null;
+const API = 'https://api.zk0x.app';
+const KEY = 'zk-playground-public-2024';
+const MODELS = {'zk-v3z':'Flagship','zk-v2b':'Fast','zk-v1b':'Lite'};
+
+let busy = false;
+let files = {};
+let activeFile = '';
+let sandboxUrl = '';
+let currentView = 'preview';
+let currentDevice = 'desktop';
+let chatHistory = [];
 
 // Init
-const chatIn = document.getElementById('chatIn');
-const sendBtn = document.getElementById('sendBtn');
-chatIn.addEventListener('input', () => {
-  chatIn.style.height = 'auto';
-  chatIn.style.height = Math.min(chatIn.scrollHeight, 120) + 'px';
-  sendBtn.disabled = !chatIn.value.trim();
+document.getElementById('promptInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
 });
-chatIn.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey && !busy && chatIn.value.trim()) { e.preventDefault(); doSend(); }
-});
-sendBtn.addEventListener('click', doSend);
 
-function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-function addMsg(role, text) {
-  const d = document.createElement('div');
-  d.className = 'msg ' + role;
-  d.textContent = text;
-  document.getElementById('msgs').appendChild(d);
-  d.scrollIntoView({ behavior: 'smooth' });
-}
-
-function useChip(el) {
-  chatIn.value = el.dataset.p;
-  document.getElementById('chips').style.display = 'none';
-  doSend();
-}
-
-// Send — sandbox-based (React/Vite)
-async function doSend() {
-  const text = chatIn.value.trim();
-  if (!text || busy) return;
-  busy = true;
-  chatIn.value = '';
-  chatIn.style.height = 'auto';
-  sendBtn.disabled = true;
-  document.getElementById('chips').style.display = 'none';
-  addMsg('user', text);
-  setStatus('gen');
-
-  const model = document.getElementById('modelSel').value;
-
-  try {
-    addMsg('assistant', '⚡ Generating React app...');
-
-    const res = await fetch(P + '/v1/sandbox/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + K },
-      body: JSON.stringify({ prompt: text, model })
-    });
-
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || 'API error ' + res.status);
-    }
-
-    const data = await res.json();
-    const sandbox = data.sandbox;
-    const code = data.code || {};
-
-    // Store files for code tab
-    files = code;
-    activeSandbox = sandbox;
-
-    // Load sandbox in iframe
-    const frame = document.getElementById('frame');
-    frame.style.display = '';
-    document.getElementById('empty').style.display = 'none';
-
-    // Use direct port URL (sandbox manager proxy)
-    const sandboxUrl = sandbox.url || ('https://' + sandbox.id + '-preview.zk0x.app');
-    frame.src = sandboxUrl;
-
-    // Render code tab
-    renderTree();
-    if (Object.keys(files).length) selectFile(Object.keys(files)[0]);
-
-    switchTab('preview');
-    document.getElementById('fileNum').textContent = 'FILES ' + Object.keys(files).length;
-    document.getElementById('genTime').textContent = sandbox.id;
-    setStatus('ok');
-    addMsg('assistant', '✅ Sandbox live: ' + sandboxUrl);
-    document.getElementById('dlBtn').style.display = '';
-
-    // Auto-show preview on mobile
-    if (window.innerWidth <= 768) {
-      document.querySelector('.chat-panel').style.display = 'none';
-      document.querySelector('.preview-panel').classList.add('mobile-show');
-      document.querySelector('.preview-panel').style.display = 'flex';
-      document.querySelectorAll('#mobileTabs button').forEach((t,i) => t.classList.toggle('active', i===1));
-    }
-
-  } catch (e) {
-    const msg = e.message.includes('fetch') || e.message.includes('network')
-      ? '⏱️ Network timeout. Try again or use zk-v2b (faster).'
-      : 'Error: ' + e.message;
-    addMsg('error', msg);
-    setStatus('err');
-  } finally {
-    busy = false;
-    sendBtn.disabled = !chatIn.value.trim();
-  }
-}
-
-function stripThinking(text) {
-  return text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<think>[\s\S]*$/gi, '').trim();
-}
-
-function extractHtml(text) {
-  const start = text.indexOf('<!DOCTYPE') !== -1 ? text.indexOf('<!DOCTYPE') : text.indexOf('<html');
-  if (start === -1) return null;
-  let html = text.slice(start);
-  if (!html.includes('</html>')) html += '\n</body></html>';
-  if (!html.includes('<meta charset')) html = '<meta charset="utf-8">' + html;
-  return html;
-}
-
-function parseFiles(text) {
-  let clean = text.trim();
-
-  // 1. Try JSON first (if AI returned JSON format)
-  const jm = clean.match(/\{\"files\"[\s\S]*\}/);
-  if (jm) {
-    try {
-      const obj = JSON.parse(jm[0]);
-      if (obj.files && typeof obj.files === 'object') {
-        const f = {};
-        for (const [k, v] of Object.entries(obj.files)) {
-          if (typeof v === 'string' && v.trim()) f[k] = v;
-        }
-        if (Object.keys(f).length) return f;
-      }
-    } catch {}
-  }
-
-  // 2. Extract HTML directly (most common case)
-  let html = clean;
-  // Remove thinking/reasoning tags
-  html = html.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-  // Unescape if needed
-  if (html.includes('\\n') && !html.includes('\n')) {
-    html = html.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-  }
-  // Strip outer code fence if wrapping the whole response
-  if (html.startsWith('```')) {
-    const m = html.match(/^```(?:html)?\s*\n([\s\S]*?)\n```$/);
-    if (m) html = m[1];
-  }
-  const hm = html.match(/<!DOCTYPE[\s\S]*<\/html>/i) || html.match(/<html[\s\S]*<\/html>/i);
-  if (hm) return splitHTML(hm[0]);
-
-  // 3. Last resort
-  if (html.includes('<') && html.length > 50) return splitHTML('<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' + html + '</body></html>');
-  return { 'index.html': html };
-}
-
-function splitHTML(html) {
-  const sm = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
-  const jm = html.match(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/i);
-  const files = {};
-  let h = html;
-  if (sm) {
-    files['style.css'] = sm[1].trim();
-    h = h.replace(sm[0], '<link rel="stylesheet" href="style.css">');
-  }
-  if (jm && !jm[0].includes('src=')) {
-    files['app.js'] = jm[1].trim();
-    h = h.replace(jm[0], '<scr' + 'ipt src="app.js"></scr' + 'ipt>');
-  }
-  files['index.html'] = h;
-  return files;
-}
-
-// File tree
-function renderTree() {
-  const sb = document.getElementById('sidebar');
-  sb.innerHTML = '<div class="code-sidebar-title">FILES</div>';
-  const icons = { '.html': '◇', '.css': '◆', '.js': '⬡', '.json': '{}', '.svg': '◈' };
-  for (const p of Object.keys(files)) {
-    const ext = '.' + p.split('.').pop();
-    const d = document.createElement('div');
-    d.className = 'file-item';
-    d.innerHTML = '<span class="file-icon">' + (icons[ext] || '•') + '</span>' + esc(p);
-    d.onclick = () => selectFile(p);
-    sb.appendChild(d);
-  }
-}
-
-function selectFile(p) {
-  activeFile = p;
-  document.getElementById('codePath').textContent = p;
-  const lines = (files[p] || '').split('\n');
-  document.getElementById('codeContent').innerHTML = lines.map((l, i) =>
-    '<span class="ln">' + (i + 1) + '</span>' + esc(l)
-  ).join('\n');
-  document.querySelectorAll('.file-item').forEach(el => {
-    el.classList.toggle('active', el.textContent.trim() === p);
+// Chips
+document.querySelectorAll('.chip').forEach(c => {
+  c.addEventListener('click', () => {
+    document.getElementById('promptInput').value = c.dataset.prompt;
+    doSend();
   });
-}
-
-// Preview
-function renderPreview() {
-  let html = files['index.html'] || '';
-  if (!html) return;
-  // If we have separate CSS/JS files, inline them into the HTML for preview
-  if (files['style.css'] && !html.includes('<style')) {
-    html = html.replace('</head>', '<sty' + 'le>' + files['style.css'] + '</sty' + 'le></head>');
-  }
-  for (const [p, c] of Object.entries(files)) {
-    if (p.endsWith('.js') && p !== 'index.html') {
-      const tag = '<scr' + 'ipt src="' + p + '"></scr' + 'ipt>';
-      if (html.includes(tag)) html = html.replace(tag, '<scr' + 'ipt>' + c + '</scr' + 'ipt>');
-    }
-  }
-  document.getElementById('empty').style.display = 'none';
-  document.getElementById('frame').style.display = '';
-  document.getElementById('frame').srcdoc = html;
-}
-
-// Tabs
-function switchTab(t) {
-  document.querySelectorAll('.preview-tab').forEach(el => el.classList.toggle('active', el.dataset.t === t));
-  const fw = document.getElementById('frameWrap');
-  const empty = document.getElementById('empty');
-  const code = document.getElementById('codeBody');
-  if (t === 'preview') {
-    fw.style.display = '';
-    empty.style.display = Object.keys(files).length ? 'none' : '';
-    code.style.display = 'none';
-  } else {
-    fw.style.display = 'none';
-    empty.style.display = 'none';
-    code.style.display = '';
-  }
-}
-
-// Mode
-function setMode(m) {
-  document.getElementById('frameWrap').className = 'frame-wrap ' + m;
-  document.querySelectorAll('.preview-responsive button').forEach(b => b.classList.toggle('active', b.dataset.m === m));
-}
+});
 
 // Status
-function setStatus(s) {
-  const dot = document.getElementById('dot');
-  const txt = document.getElementById('statusTxt');
-  const bar = document.getElementById('genBar');
-  dot.className = 'dot';
-  txt.className = '';
-  bar.className = 'gen-bar';
-  if (s === 'gen') { dot.classList.add('on'); txt.textContent = 'BUILDING...'; txt.className = 'blink'; bar.classList.add('on'); document.getElementById('chatIdle').textContent = 'GENERATING'; }
-  else if (s === 'ok') { dot.classList.add('on'); txt.textContent = 'IDLE'; document.getElementById('chatIdle').textContent = 'IDLE'; }
-  else if (s === 'err') { dot.classList.add('err'); txt.textContent = 'ERROR'; document.getElementById('chatIdle').textContent = 'ERROR'; }
-  else { txt.textContent = 'IDLE'; document.getElementById('chatIdle').textContent = 'IDLE'; }
+function setStatus(s, cls) {
+  const el = document.getElementById('status');
+  el.textContent = s;
+  el.className = 'status ' + (cls || '');
 }
 
-// Download ZIP
-async function downloadZip() {
-  if (!Object.keys(files).length) return;
+// Messages
+function addMsg(text, type) {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = 'msg ' + type;
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+// Send
+async function doSend() {
+  const input = document.getElementById('promptInput');
+  const prompt = input.value.trim();
+  if (!prompt || busy) return;
+
+  input.value = '';
+  addMsg(prompt, 'user');
+  chatHistory.push({role:'user', content:prompt});
+
+  setStatus('BUILDING', 'building');
+  document.getElementById('sendBtn').disabled = true;
+  busy = true;
+
+  const thinkingMsg = addMsg('Thinking...', 'ai');
+
   try {
-    const zip = new JSZip();
-    for (const [p, c] of Object.entries(files)) zip.file(p, c);
-    const blob = await zip.generateAsync({ type: 'blob' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'zka-project.zip';
-    a.click();
-  } catch {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([files['index.html'] || ''], { type: 'text/html' }));
-    a.download = 'index.html';
-    a.click();
+    const resp = await fetch(API + '/v1/sandbox/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + KEY
+      },
+      body: JSON.stringify({prompt, model: 'zk-v3z'})
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.detail || 'Generation failed (' + resp.status + ')');
+    }
+
+    const data = await resp.json();
+    const sandbox = data.sandbox;
+    files = data.code || {};
+
+    sandboxUrl = sandbox.url || ('https://' + sandbox.id + '-preview.zk0x.app');
+
+    thinkingMsg.textContent = 'Done! Your app is ready.';
+    addMsg('Preview: ' + sandboxUrl, 'system');
+
+    // Show preview
+    document.getElementById('emptyState').style.display = 'none';
+    const iframe = document.getElementById('previewIframe');
+    iframe.src = sandboxUrl;
+    document.getElementById('urlBar').textContent = sandboxUrl.replace('https://', '');
+
+    // Update code view
+    renderCodeView();
+
+    setStatus('READY', 'ready');
+    chatHistory.push({role:'assistant', content:'App generated: ' + sandboxUrl});
+
+    // Auto-switch to preview on mobile
+    if (window.innerWidth <= 768) mobileTab('preview');
+
+  } catch (e) {
+    thinkingMsg.textContent = 'Error: ' + e.message;
+    thinkingMsg.classList.add('error');
+    setStatus('ERROR', 'error');
+    console.error(e);
+  } finally {
+    busy = false;
+    document.getElementById('sendBtn').disabled = false;
   }
 }
 
-// New project
-function newProject() {
-  files = {};
-  activeFile = '';
-  document.getElementById('msgs').innerHTML = '';
-  document.getElementById('chips').style.display = 'flex';
-  document.getElementById('frame').style.display = 'none';
-  document.getElementById('frame').srcdoc = '';
-  document.getElementById('empty').style.display = '';
-  document.getElementById('codeContent').innerHTML = '';
-  document.getElementById('codePath').textContent = '—';
-  document.getElementById('sidebar').innerHTML = '<div class="code-sidebar-title">FILES</div>';
-  document.getElementById('dlBtn').style.display = 'none';
-  document.getElementById('genTime').textContent = '';
-  document.getElementById('fileNum').textContent = 'FILES 0';
-  setStatus('idle');
-  switchTab('preview');
+// View switching
+function switchView(view) {
+  currentView = view;
+  document.getElementById('tabPreview').classList.toggle('active', view === 'preview');
+  document.getElementById('tabCode').classList.toggle('active', view === 'code');
+  document.getElementById('previewArea').style.display = view === 'preview' ? 'flex' : 'none';
+  document.getElementById('codeArea').classList.toggle('visible', view === 'code');
+}
+
+// Device switching
+function setDevice(device) {
+  currentDevice = device;
+  const frame = document.getElementById('previewFrame');
+  frame.className = 'preview-frame ' + (device === 'desktop' ? 'full' : device);
+  document.querySelectorAll('.device-btn').forEach(b => b.classList.remove('active'));
+  event.target.closest('.device-btn').classList.add('active');
+}
+
+// Code view
+function renderCodeView() {
+  const sidebar = document.getElementById('codeSidebar');
+  const content = document.getElementById('codeContent');
+  sidebar.innerHTML = '';
+
+  const fileNames = Object.keys(files);
+  if (!fileNames.length) return;
+
+  fileNames.forEach((name, i) => {
+    const div = document.createElement('div');
+    div.className = 'file-item' + (i === 0 ? ' active' : '');
+    div.innerHTML = '<span class="file-icon">📄</span>' + name;
+    div.onclick = () => showFile(name);
+    sidebar.appendChild(div);
+  });
+
+  showFile(fileNames[0]);
+}
+
+function showFile(name) {
+  activeFile = name;
+  document.querySelectorAll('.file-item').forEach(el => {
+    el.classList.toggle('active', el.textContent.trim() === name);
+  });
+
+  const code = files[name] || '';
+  const lines = code.split('\n');
+  const content = document.getElementById('codeContent');
+
+  let html = '<pre>';
+  lines.forEach((line, i) => {
+    html += '<div class="line"><span class="ln">' + (i + 1) + '</span><span class="lc">' + escapeHtml(line) + '</span></div>';
+  });
+  html += '</pre>';
+  content.innerHTML = html;
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Mobile tabs
+function mobileTab(tab) {
+  document.querySelectorAll('.mobile-tab').forEach((el, i) => {
+    el.classList.toggle('active', ['chat','preview','code'][i] === tab);
+  });
+
+  const sidebar = document.getElementById('sidebar');
+  const main = document.querySelector('.main');
+
+  if (tab === 'chat') {
+    sidebar.classList.remove('hidden');
+    sidebar.style.display = 'flex';
+    main.style.display = 'none';
+  } else {
+    sidebar.classList.add('hidden');
+    setTimeout(() => { sidebar.style.display = 'none'; }, 250);
+    main.style.display = 'flex';
+    switchView(tab);
+  }
 }
 
 // Health check
-fetch(P + '/health').then(r => r.json()).then(d => {
-  if (d.status === 'ok') document.getElementById('dot').classList.add('on');
-}).catch(() => {});
-
-// Auto-detect screen size
-(function() {
-  const w = window.innerWidth;
-  // Auto-set preview responsive mode
-  if (w <= 480) setMode('mobile');
-  else if (w <= 768) setMode('tablet');
-  else setMode('desktop');
-})();
-
-// Mobile view switching
-function mobileView(view, btn) {
-  const chatPanel = document.querySelector('.chat-panel');
-  const previewPanel = document.querySelector('.preview-panel');
-  const tabs = document.querySelectorAll('#mobileTabs button');
-
-  tabs.forEach(t => t.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-
-  if (view === 'chat') {
-    chatPanel.style.display = '';
-    previewPanel.classList.remove('mobile-show');
-  } else if (view === 'preview') {
-    chatPanel.style.display = 'none';
-    previewPanel.classList.add('mobile-show');
-    previewPanel.style.display = 'flex';
-    document.getElementById('codeBody').style.display = 'none';
-    document.getElementById('frame').style.display = '';
-    document.getElementById('empty').style.display = Object.keys(files).length ? 'none' : '';
-  } else if (view === 'code') {
-    chatPanel.style.display = 'none';
-    previewPanel.classList.add('mobile-show');
-    previewPanel.style.display = 'flex';
-    switchTab('code');
+async function checkHealth() {
+  try {
+    const r = await fetch(API + '/health');
+    const d = await r.json();
+    if (d.status === 'ok') setStatus('IDLE', '');
+    else setStatus('OFFLINE', 'error');
+  } catch {
+    setStatus('OFFLINE', 'error');
   }
 }
+checkHealth();
+
+// Auto-focus
+document.getElementById('promptInput').focus();
 </script>
 </body>
 </html>

@@ -219,12 +219,35 @@ const KEY = 'zk-playground-public-2024';
 const MODELS = {'zk-v3z':'Flagship','zk-v2b':'Fast','zk-v1b':'Lite'};
 
 let busy = false;
-let files = {};
-let activeFile = '';
-let sandboxUrl = '';
+let files = JSON.parse(localStorage.getItem('zka_files') || '{}');
+let activeFile = localStorage.getItem('zka_activeFile') || '';
+let sandboxUrl = localStorage.getItem('zka_sandboxUrl') || '';
 let currentView = 'preview';
 let currentDevice = 'desktop';
-let chatHistory = [];
+let chatHistory = JSON.parse(localStorage.getItem('zka_chatHistory') || '[]');
+
+// Save state to localStorage
+function saveState() {
+  localStorage.setItem('zka_chatHistory', JSON.stringify(chatHistory));
+  localStorage.setItem('zka_sandboxUrl', sandboxUrl);
+  localStorage.setItem('zka_files', JSON.stringify(files));
+  localStorage.setItem('zka_activeFile', activeFile);
+}
+
+// Restore UI from saved state
+function restoreState() {
+  if (chatHistory.length > 0) {
+    chatHistory.forEach(m => addMsg(m.content, m.role === 'assistant' ? 'ai' : m.role));
+  }
+  if (sandboxUrl) {
+    document.getElementById('emptyState').style.display = 'none';
+    const iframe = document.getElementById('previewIframe');
+    iframe.src = sandboxUrl;
+    iframe.style.display = 'block';
+    document.getElementById('urlBar').textContent = sandboxUrl.replace('https://', '');
+    renderCodeView();
+  }
+}
 
 // Init
 document.getElementById('promptInput').addEventListener('keydown', e => {
@@ -266,6 +289,7 @@ async function doSend() {
   input.value = '';
   addMsg(prompt, 'user');
   chatHistory.push({role:'user', content:prompt});
+  saveState();
 
   document.getElementById('sendBtn').disabled = true;
   busy = true;
@@ -309,6 +333,7 @@ async function doChat(prompt, thinkingMsg) {
 
     thinkingMsg.textContent = reply;
     chatHistory.push({role:'assistant', content:reply});
+    saveState();
   } catch (e) {
     thinkingMsg.textContent = 'Error: ' + e.message;
     thinkingMsg.classList.add('error');
@@ -357,6 +382,7 @@ async function doBuild(prompt, thinkingMsg) {
 
     setStatus('READY', 'ready');
     chatHistory.push({role:'assistant', content:'App is live: ' + sandboxUrl});
+    saveState();
 
     // Auto-switch to preview on mobile
     if (window.innerWidth <= 768) mobileTab('preview');
@@ -465,6 +491,7 @@ async function checkHealth() {
   }
 }
 checkHealth();
+restoreState();
 
 // Auto-focus
 document.getElementById('promptInput').focus();

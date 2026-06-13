@@ -102,15 +102,25 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .blink{animation:pulse 1.5s ease-in-out infinite}
 
+/* Mobile tab bar */
+.mobile-tabs{display:none;position:fixed;bottom:0;left:0;right:0;z-index:300;background:var(--bg-panel);border-top:1px solid var(--border);padding:6px 10px env(safe-area-inset-bottom,6px);justify-content:center;gap:6px}
+.mobile-tabs button{flex:1;max-width:160px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-dim);font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.mobile-tabs button.active{color:var(--accent);border-color:var(--accent);background:var(--accent-dim)}
+
 @media(max-width:768px){
   .main{flex-direction:column}
-  .chat-panel{width:100%;border-right:none;border-bottom:1px solid var(--border);max-height:45vh}
+  .chat-panel{width:100%;border-right:none;border-bottom:none;max-height:none;flex:1}
+  .preview-panel{display:none;flex:1}
+  .preview-panel.mobile-show{display:flex;position:fixed;inset:0;z-index:200}
   .nav-links{display:none}
   .code-sidebar{width:140px}
+  .mobile-tabs{display:flex!important}
+  .nav-model{display:none}
 }
 @media(max-width:480px){
   .navbar{padding:0 10px;gap:8px}
   .code-sidebar{width:120px}
+  .mobile-tabs button{font-size:9px;padding:6px 10px}
 }
 </style>
 </head>
@@ -196,6 +206,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       </div>
     </div>
   </div>
+</div>
+
+<!-- Mobile bottom tabs -->
+<div class="mobile-tabs" id="mobileTabs">
+  <button class="active" onclick="mobileView('chat',this)">💬 CHAT</button>
+  <button onclick="mobileView('preview',this)">👁 PREVIEW</button>
+  <button onclick="mobileView('code',this)">📝 CODE</button>
 </div>
 
 <script>
@@ -299,6 +316,13 @@ async function doSend() {
           if (partialHtml) {
             document.getElementById('frame').srcdoc = partialHtml;
             switchTab('preview');
+            // Auto-show preview on mobile during generation
+            if (window.innerWidth <= 768) {
+              document.querySelector('.chat-panel').style.display = 'none';
+              document.querySelector('.preview-panel').classList.add('mobile-show');
+              document.querySelector('.preview-panel').style.display = 'flex';
+              document.querySelectorAll('#mobileTabs button').forEach((t,i) => t.classList.toggle('active', i===1));
+            }
           }
         }
       }
@@ -527,6 +551,42 @@ function newProject() {
 fetch(P + '/health').then(r => r.json()).then(d => {
   if (d.status === 'ok') document.getElementById('dot').classList.add('on');
 }).catch(() => {});
+
+// Auto-detect screen size
+(function() {
+  const w = window.innerWidth;
+  // Auto-set preview responsive mode
+  if (w <= 480) setMode('mobile');
+  else if (w <= 768) setMode('tablet');
+  else setMode('desktop');
+})();
+
+// Mobile view switching
+function mobileView(view, btn) {
+  const chatPanel = document.querySelector('.chat-panel');
+  const previewPanel = document.querySelector('.preview-panel');
+  const tabs = document.querySelectorAll('#mobileTabs button');
+
+  tabs.forEach(t => t.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  if (view === 'chat') {
+    chatPanel.style.display = '';
+    previewPanel.classList.remove('mobile-show');
+  } else if (view === 'preview') {
+    chatPanel.style.display = 'none';
+    previewPanel.classList.add('mobile-show');
+    previewPanel.style.display = 'flex';
+    document.getElementById('codeBody').style.display = 'none';
+    document.getElementById('frame').style.display = '';
+    document.getElementById('empty').style.display = Object.keys(files).length ? 'none' : '';
+  } else if (view === 'code') {
+    chatPanel.style.display = 'none';
+    previewPanel.classList.add('mobile-show');
+    previewPanel.style.display = 'flex';
+    switchTab('code');
+  }
+}
 </script>
 </body>
 </html>

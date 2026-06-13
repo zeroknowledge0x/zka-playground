@@ -297,7 +297,7 @@ async function doSend() {
           const cleaned = stripThinking(fullContent);
           const partialHtml = extractHtml(cleaned);
           if (partialHtml) {
-            document.getElementById('prevFrame').srcdoc = partialHtml;
+            document.getElementById('frame').srcdoc = partialHtml;
             switchTab('preview');
           }
         }

@@ -157,10 +157,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div class="chip" data-prompt="A kanban board with drag-and-drop columns: To Do, In Progress, Done">Kanban</div>
     </div>
     <div class="chat" id="chat">
-      <div class="msg system">Describe what you want to build</div>
+      <div class="msg system">Ask anything or describe what you want to build</div>
     </div>
     <div class="chat-input">
-      <input type="text" id="promptInput" placeholder="Describe your app..." autocomplete="off">
+      <input type="text" id="promptInput" placeholder="Describe your app or ask anything..." autocomplete="off">
       <button id="sendBtn" onclick="doSend()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
@@ -338,7 +338,7 @@ function doReset() {
   localStorage.removeItem('zka_chatHistory');
 
   // Reset UI
-  document.getElementById('chat').innerHTML = '<div class="msg system">Describe what you want to build</div>';
+  document.getElementById('chat').innerHTML = '<div class="msg system">Ask anything or describe what you want to build</div>';
   document.getElementById('codeSidebar').innerHTML = '';
   document.getElementById('codeContent').innerHTML = '<div class="empty-state"><div class="icon">{ }</div><p>Generate an app to view its source code</p></div>';
   document.getElementById('dlBtn').style.display = 'none';
@@ -431,9 +431,31 @@ async function doSend() {
 
   const thinkingMsg = addMsg('Thinking...', 'ai');
 
-  // Detect build intent
-  const buildKeywords = /\b(build|create|make|generate|buat|bikin|kembangkan|develop|website|web\s*app|landing|portfolio|dashboard|calculator|timer|todo|kanban|form|game|app|page|halaman|aplikasi|situs)\b/i;
-  const isBuildRequest = buildKeywords.test(prompt) || (sandboxId && /tambah|add|edit|ubah|ganti|fix|perbaiki|update|modify|dark\s*mode|warna|color|responsive|layout|style|design/i.test(prompt));
+  // Detect build/edit/code intent — smart enough to distinguish from chat
+  const lower = prompt.toLowerCase();
+
+  const buildWords = /\b(build|create|make|generate|buat|bikin|buatin|bikinkan|kembangkan|develop|terapkan|website|web\s*app|landing|portfolio|dashboard|calculator|timer|todo|kanban|form|game|app|page|halaman|aplikasi|situs)\b/i;
+  const editWords = /\b(tambah|add|edit|ubah|ganti|fix|perbaiki|update|modify|dark\s*mode|warna|color|responsive|layout|style|design)\b/i;
+  const helpPrefix = /^\s*(tolong|mohon|please|help|bisa|bisakah|coba|cobain|mint|aku\s+mau|saya\s+mau)\b/i;
+  const giveMePattern = /\b(buatkan|buatin|bikinkan|bikinin|kasih|berikan|tunjukkan|gimana\s+cara\s+buat)\b/i;
+
+  // Always a build if explicit give-me-build pattern or standalone build words
+  let isBuildRequest = giveMePattern.test(prompt) || buildWords.test(prompt);
+
+  // If explicit edit words AND sandbox exists -> edit mode
+  if (!isBuildRequest && sandboxId && editWords.test(prompt)) {
+    isBuildRequest = true;
+  }
+
+  // If help prefix + edit/build word in same message -> build
+  if (!isBuildRequest && helpPrefix.test(prompt) && (buildWords.test(prompt) || editWords.test(prompt))) {
+    isBuildRequest = true;
+  }
+
+  // First message, if ambiguous words + question-ish -> still build (user asking "can you build X?" = yes)
+  if (!isBuildRequest && helpPrefix.test(prompt) && giveMePattern.test(prompt)) {
+    isBuildRequest = true;
+  }
 
   if (isBuildRequest) {
     await doBuild(prompt, thinkingMsg);

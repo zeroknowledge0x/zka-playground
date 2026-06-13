@@ -245,21 +245,14 @@ async function doSend() {
 
   const model = document.getElementById('modelSel').value;
   // Build system prompt - ask for single HTML with inline CSS/JS (auto-split later)
-  const sys = "You are an expert web developer. Generate a complete, production-quality single HTML file.\n\n"
-    + "RULES:\n"
-    + "- Return ONLY the HTML file. No explanations, no markdown, no code fences.\n"
-    + "- ALL CSS must be inside <style> tags in the <head>\n"
-    + "- ALL JavaScript must be inside <script> tags before </body>\n"
-    + "- Use modern CSS (flexbox/grid, variables, responsive)\n"
-    + "- Use vanilla JS (no frameworks), ES6+\n"
-    + "- Include realistic sample content\n"
-    + "- Make it look professional with good typography, spacing, colors\n"
-    + "- Smooth transitions and subtle animations\n"
-    + "- The page must work immediately when opened in a browser";
+  const sys = "Return a single complete HTML file. No markdown, no fences, no explanations.\n"
+    + "CSS in <style> in <head>. JS in <script> before </body>.\n"
+    + "Use flexbox/grid, CSS variables, vanilla ES6 JS. Professional look with sample data.\n"
+    + "Include animations. Must work when opened directly in browser.";
 
   try {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 120000);
+    const timer = setTimeout(() => ctrl.abort(), 90000);
 
     const res = await fetch(P + '/v1/chat/completions', {
       method: 'POST',
@@ -267,7 +260,7 @@ async function doSend() {
       body: JSON.stringify({
         model,
         messages: [{ role: 'system', content: sys }, { role: 'user', content: text }],
-        max_tokens: 6000,
+        max_tokens: 3000,
         stream: false
       }),
       signal: ctrl.signal
@@ -291,7 +284,10 @@ async function doSend() {
     addMsg('assistant', 'Generated ' + Object.keys(parsed).length + ' files: ' + Object.keys(parsed).join(', '));
     document.getElementById('dlBtn').style.display = '';
   } catch (e) {
-    addMsg('error', 'Error: ' + e.message);
+    const msg = e.name === 'AbortError'
+      ? '⏱️ Generation took too long (Cloudflare 100s limit). Try a simpler prompt or zk-v2b (faster).'
+      : 'Error: ' + e.message;
+    addMsg('error', msg);
     setStatus('err');
   } finally {
     busy = false;

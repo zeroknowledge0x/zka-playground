@@ -221,7 +221,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div class="empty-state" id="emptyState">
         <div class="icon">⚡</div>
         <p>Describe your app in the chat and watch it come to life</p>
-        <div class="hint">Powered by ZKA ⚡</div>
+        <div class="hint">ZKA Playground — Creative Layer ⚡</div>
       </div>
     </div>
 
@@ -529,7 +529,7 @@ async function doChat(prompt, thinkingMsg) {
 
     if (!resp.ok) throw new Error('Chat failed');
     const data = await resp.json();
-    const reply = data.choices?.[0]?.message?.content || 'Gak ngerti nih.';
+    const reply = data.choices?.[0]?.message?.content || 'I didn't understand that. Try describing what you want to build.';
 
     thinkingMsg.textContent = reply;
     chatHistory.push({role:'assistant', content:reply});

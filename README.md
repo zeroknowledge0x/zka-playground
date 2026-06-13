@@ -1,6 +1,6 @@
 # ⚡ ZKA Playground
 
-> AI-powered web app builder — describe what you want, get a live app in seconds.
+> The **Creative Layer** of the ZKA Labs ecosystem — an AI-powered web app builder — describe what you want, get a live app in seconds.
 
 **Live →** [zeroknowledge0x.github.io/zka-playground](https://zeroknowledge0x.github.io/zka-playground/)
 

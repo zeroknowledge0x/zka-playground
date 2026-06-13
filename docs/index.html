@@ -320,6 +320,8 @@ function parseFiles(text) {
 
   // 2. Extract HTML directly (most common case)
   let html = clean;
+  // Remove thinking/reasoning tags
+  html = html.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
   // Unescape if needed
   if (html.includes('\\n') && !html.includes('\n')) {
     html = html.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');

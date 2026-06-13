@@ -267,12 +267,61 @@ async function doSend() {
   addMsg(prompt, 'user');
   chatHistory.push({role:'user', content:prompt});
 
-  setStatus('BUILDING', 'building');
   document.getElementById('sendBtn').disabled = true;
   busy = true;
 
   const thinkingMsg = addMsg('Thinking...', 'ai');
 
+  // Detect build intent
+  const buildKeywords = /\b(build|create|make|generate|buat|bikin|kembangkan|develop|website|web\s*app|landing|portfolio|dashboard|calculator|timer|todo|kanban|form|game|app|page|halaman|aplikasi|situs)\b/i;
+  const isBuildRequest = buildKeywords.test(prompt) || (sandboxUrl && /tambah|add|edit|ubah|ganti|fix|perbaiki|update|modify|dark\s*mode|warna|color|responsive|layout|style|design/i.test(prompt));
+
+  if (isBuildRequest) {
+    await doBuild(prompt, thinkingMsg);
+  } else {
+    await doChat(prompt, thinkingMsg);
+  }
+}
+
+// Chat mode — normal conversation
+async function doChat(prompt, thinkingMsg) {
+  const model = document.getElementById('modelSelect').value;
+  try {
+    const resp = await fetch(API + '/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + KEY
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          ...chatHistory.slice(-10).map(m => ({role: m.role === 'ai' ? 'assistant' : m.role, content: m.content})),
+        ],
+        max_tokens: 1000,
+        stream: false
+      })
+    });
+
+    if (!resp.ok) throw new Error('Chat failed');
+    const data = await resp.json();
+    const reply = data.choices?.[0]?.message?.content || 'Gak ngerti nih.';
+
+    thinkingMsg.textContent = reply;
+    chatHistory.push({role:'assistant', content:reply});
+  } catch (e) {
+    thinkingMsg.textContent = 'Error: ' + e.message;
+    thinkingMsg.classList.add('error');
+  } finally {
+    busy = false;
+    document.getElementById('sendBtn').disabled = false;
+    setStatus('READY', 'ready');
+  }
+}
+
+// Build mode — generate sandbox
+async function doBuild(prompt, thinkingMsg) {
+  setStatus('BUILDING', 'building');
   try {
     const resp = await fetch(API + '/v1/sandbox/generate', {
       method: 'POST',

@@ -218,7 +218,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <script>
 const P = 'https://api.zk0x.app';
 const K = 'zk-pla' + 'yground-public-2024';
-let busy = false, files = {}, activeFile = '';
+let busy = false, files = {}, activeFile = '', activeSandbox = null;
 
 // Init
 const chatIn = document.getElementById('chatIn');
@@ -248,7 +248,7 @@ function useChip(el) {
   doSend();
 }
 
-// Send
+// Send — sandbox-based (React/Vite)
 async function doSend() {
   const text = chatIn.value.trim();
   if (!text || busy) return;
@@ -261,89 +261,59 @@ async function doSend() {
   setStatus('gen');
 
   const model = document.getElementById('modelSel').value;
-  // Build system prompt - ask for single HTML with inline CSS/JS (auto-split later)
-  const sys = "Return a single complete HTML file. No markdown, no fences, no explanations.\n"
-    + "CSS in <style> in <head>. JS in <script> before </body>.\n"
-    + "Use flexbox/grid, CSS variables, vanilla ES6 JS. Professional look with sample data.\n"
-    + "Include animations. Must work when opened directly in browser.";
 
   try {
+    addMsg('assistant', '⚡ Generating React app...');
 
-    const res = await fetch(P + '/v1/chat/completions', {
+    const res = await fetch(P + '/v1/sandbox/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + K },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'system', content: sys }, { role: 'user', content: text }],
-        max_tokens: 6000,
-        stream: true
-      })
+      body: JSON.stringify({ prompt: text, model })
     });
 
-    if (!res.ok) throw new Error('API error ' + res.status);
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let fullContent = '';
-    let lastPreview = 0;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6).trim();
-        if (data === '[DONE]') continue;
-
-        try {
-          const chunk = JSON.parse(data);
-          const delta = chunk.choices?.[0]?.delta?.content || '';
-          if (delta) fullContent += delta;
-        } catch {}
-
-        // Update preview every 500ms
-        const now = Date.now();
-        if (fullContent && now - lastPreview > 500) {
-          lastPreview = now;
-          const cleaned = stripThinking(fullContent);
-          const partialHtml = extractHtml(cleaned);
-          if (partialHtml) {
-            document.getElementById('frame').srcdoc = partialHtml;
-            switchTab('preview');
-            // Auto-show preview on mobile during generation
-            if (window.innerWidth <= 768) {
-              document.querySelector('.chat-panel').style.display = 'none';
-              document.querySelector('.preview-panel').classList.add('mobile-show');
-              document.querySelector('.preview-panel').style.display = 'flex';
-              document.querySelectorAll('#mobileTabs button').forEach((t,i) => t.classList.toggle('active', i===1));
-            }
-          }
-        }
-      }
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || 'API error ' + res.status);
     }
 
-    // Final parse
-    const cleaned = stripThinking(fullContent);
-    if (!cleaned.trim()) throw new Error('Empty response');
+    const data = await res.json();
+    const sandbox = data.sandbox;
+    const code = data.code || {};
 
-    const parsed = parseFiles(cleaned);
-    files = parsed;
+    // Store files for code tab
+    files = code;
+    activeSandbox = sandbox;
+
+    // Load sandbox in iframe
+    const frame = document.getElementById('frame');
+    frame.style.display = '';
+    document.getElementById('empty').style.display = 'none';
+
+    // Use direct port URL (sandbox manager proxy)
+    const sandboxUrl = sandbox.url || ('https://' + sandbox.id + '-preview.zk0x.app');
+    frame.src = sandboxUrl;
+
+    // Render code tab
     renderTree();
-    selectFile(Object.keys(parsed)[0]);
-    renderPreview();
-    document.getElementById('fileNum').textContent = 'FILES ' + Object.keys(parsed).length;
-    document.getElementById('genTime').textContent = Object.keys(parsed).length + ' files';
+    if (Object.keys(files).length) selectFile(Object.keys(files)[0]);
+
+    switchTab('preview');
+    document.getElementById('fileNum').textContent = 'FILES ' + Object.keys(files).length;
+    document.getElementById('genTime').textContent = sandbox.id;
     setStatus('ok');
-    addMsg('assistant', 'Generated ' + Object.keys(parsed).length + ' files: ' + Object.keys(parsed).join(', '));
+    addMsg('assistant', '✅ Sandbox live: ' + sandboxUrl);
     document.getElementById('dlBtn').style.display = '';
+
+    // Auto-show preview on mobile
+    if (window.innerWidth <= 768) {
+      document.querySelector('.chat-panel').style.display = 'none';
+      document.querySelector('.preview-panel').classList.add('mobile-show');
+      document.querySelector('.preview-panel').style.display = 'flex';
+      document.querySelectorAll('#mobileTabs button').forEach((t,i) => t.classList.toggle('active', i===1));
+    }
+
   } catch (e) {
-    const msg = e.name === 'TypeError' && e.message.includes('fetch')
+    const msg = e.message.includes('fetch') || e.message.includes('network')
       ? '⏱️ Network timeout. Try again or use zk-v2b (faster).'
       : 'Error: ' + e.message;
     addMsg('error', msg);
@@ -351,7 +321,6 @@ async function doSend() {
   } finally {
     busy = false;
     sendBtn.disabled = !chatIn.value.trim();
-    if (!Object.keys(files).length) setStatus('idle');
   }
 }
 
@@ -360,11 +329,9 @@ function stripThinking(text) {
 }
 
 function extractHtml(text) {
-  // Try to extract a partial HTML document from accumulated stream
   const start = text.indexOf('<!DOCTYPE') !== -1 ? text.indexOf('<!DOCTYPE') : text.indexOf('<html');
   if (start === -1) return null;
   let html = text.slice(start);
-  // Add closing tags if not yet present for valid rendering
   if (!html.includes('</html>')) html += '\n</body></html>';
   if (!html.includes('<meta charset')) html = '<meta charset="utf-8">' + html;
   return html;

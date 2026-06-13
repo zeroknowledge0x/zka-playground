@@ -415,6 +415,23 @@ function addMsg(text, type) {
   return div;
 }
 
+// ── Context enrichment — build meaningful prompt from chat history ──
+function enrichPrompt(prompt) {
+  // If prompt is very short (< 10 chars) and looks like a choice, add chat context
+  if (prompt.length < 10 && /^[a-cA-C1-9]$|^opsi|^pilih|^option/i.test(prompt.trim())) {
+    // Get last 6 messages from chat history for context
+    const recent = chatHistory.slice(-8);
+    const context = recent.map(m => {
+      const role = m.role === 'user' ? 'User' : 'ZK';
+      // Truncate long messages
+      const text = m.content.length > 200 ? m.content.slice(0, 200) + '...' : m.content;
+      return role + ': ' + text;
+    }).join('\n');
+    return 'User chose option ' + prompt.trim().toUpperCase() + '. Context from conversation:\n' + context + '\n\nBased on this context, execute what the user wants.';
+  }
+  return prompt;
+}
+
 // ── Send ───────────────────────────────────────────────
 async function doSend() {
   const input = document.getElementById('promptInput');
@@ -473,8 +490,8 @@ async function doSend() {
     isBuildRequest = true;
   }
 
-  // User choosing an option (A/B/C/1/2/3) with existing sandbox → rebuild
-  if (!isBuildRequest && sandboxId && choicePattern.test(prompt.trim())) {
+  // User choosing an option (A/B/C/1/2/3) → rebuild (even without sandbox)
+  if (!isBuildRequest && choicePattern.test(prompt.trim())) {
     isBuildRequest = true;
   }
 
@@ -531,9 +548,10 @@ async function doChat(prompt, thinkingMsg) {
 async function doBuild(prompt, thinkingMsg) {
   setStatus('BUILDING', 'building');
 
-  // Prepare request body
+  // Prepare request body — enrich short choices with chat context
+  const enrichedPrompt = enrichPrompt(prompt);
   const body = {
-    prompt: prompt,
+    prompt: enrichedPrompt,
     model: document.getElementById('modelSelect').value,
   };
 

@@ -447,7 +447,7 @@ async function doSend() {
     isBuildRequest = true;
   }
 
-  // If help prefix + edit/build word in same message -> build
+  // If help prefix + edit/build word in same message -> build even without sandbox
   if (!isBuildRequest && helpPrefix.test(prompt) && (buildWords.test(prompt) || editWords.test(prompt))) {
     isBuildRequest = true;
   }

@@ -518,7 +518,7 @@ async function doBuild(prompt, thinkingMsg) {
 
     // Update state
     sandboxId = sandbox.id;
-    sandboxUrl = sandbox.url || ('https://' + sandbox.id + '-preview.zk0x.app');
+    sandboxUrl = sandbox.url || ('https://preview.zk0x.app/' + sandbox.id + '/');
     files = data.code || {};
 
     // Update UI

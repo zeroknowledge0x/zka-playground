@@ -302,11 +302,9 @@ async function doSend() {
 
 function parseFiles(text) {
   let clean = text.trim();
-  // Strip markdown fences
-  const fence = clean.match(/```(?:html)?\s*\n?([\s\S]*?)```/);
-  if (fence) clean = fence[1].trim();
-  // Strip JSON wrapper if AI returned JSON anyway
-  const jm = clean.match(/\{[\s\S]*\}/);
+
+  // 1. Try JSON first (if AI returned JSON format)
+  const jm = clean.match(/\{\"files\"[\s\S]*\}/);
   if (jm) {
     try {
       const obj = JSON.parse(jm[0]);
@@ -319,15 +317,22 @@ function parseFiles(text) {
       }
     } catch {}
   }
-  // Unescape literal \n if AI returned escaped
+
+  // 2. Extract HTML directly (most common case)
   let html = clean;
+  // Unescape if needed
   if (html.includes('\\n') && !html.includes('\n')) {
     html = html.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
   }
-  // Extract HTML and split into files
+  // Strip outer code fence if wrapping the whole response
+  if (html.startsWith('```')) {
+    const m = html.match(/^```(?:html)?\s*\n([\s\S]*?)\n```$/);
+    if (m) html = m[1];
+  }
   const hm = html.match(/<!DOCTYPE[\s\S]*<\/html>/i) || html.match(/<html[\s\S]*<\/html>/i);
   if (hm) return splitHTML(hm[0]);
-  // Last resort
+
+  // 3. Last resort
   if (html.includes('<') && html.length > 50) return splitHTML('<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' + html + '</body></html>');
   return { 'index.html': html };
 }

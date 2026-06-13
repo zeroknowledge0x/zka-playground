@@ -439,8 +439,24 @@ async function doSend() {
   const helpPrefix = /^\s*(tolong|mohon|please|help|bisa|bisakah|coba|cobain|mint|aku\s+mau|saya\s+mau)\b/i;
   const giveMePattern = /\b(buatkan|buatin|bikinkan|bikinin|kasih|berikan|tunjukkan|gimana\s+cara\s+buat)\b/i;
 
+  // Problem/troubleshooting keywords — trigger rebuild, NOT chat advice
+  const problemWords = /\b(blank|hitam|kosong|error|tidak\s+berfungsi|tidak\s+jalan|tidak\s+muncul|tidak\s+bisa|rusak|berantakan|jelek|bermasalah|masalah|bug|crash|gagal|kacau|hilang|not\s+working|not\s+loading|broken|white\s+screen|black\s+screen|check\s+lagi|cek\s+lagi|periksa|diagnos|debug|rebuild|remake|ulang|redo)\b/i;
+
+  // User providing a choice/option (A, B, C, 1, 2, 3) with sandbox → treat as rebuild instruction
+  const choicePattern = /^[a-cA-C]\b|^[1-3]\b|^opsi\s*[a-c1-3]|^pilih\s*[a-c1-3]|^option\s*[a-c1-3]/i;
+
   // Always a build if explicit give-me-build pattern or standalone build words
   let isBuildRequest = giveMePattern.test(prompt) || buildWords.test(prompt);
+
+  // Problem report with existing sandbox → rebuild to fix
+  if (!isBuildRequest && sandboxId && problemWords.test(prompt)) {
+    isBuildRequest = true;
+  }
+
+  // Problem report without sandbox + help prefix → build
+  if (!isBuildRequest && helpPrefix.test(prompt) && problemWords.test(prompt)) {
+    isBuildRequest = true;
+  }
 
   // If explicit edit words AND sandbox exists -> edit mode
   if (!isBuildRequest && sandboxId && editWords.test(prompt)) {
@@ -454,6 +470,16 @@ async function doSend() {
 
   // First message, if ambiguous words + question-ish -> still build (user asking "can you build X?" = yes)
   if (!isBuildRequest && helpPrefix.test(prompt) && giveMePattern.test(prompt)) {
+    isBuildRequest = true;
+  }
+
+  // User choosing an option (A/B/C/1/2/3) with existing sandbox → rebuild
+  if (!isBuildRequest && sandboxId && choicePattern.test(prompt.trim())) {
+    isBuildRequest = true;
+  }
+
+  // Short actionable messages with sandbox → rebuild
+  if (!isBuildRequest && sandboxId && prompt.length < 20 && /\b(buat|tambah|edit|fix|ganti|ubah|update|hapus|hilangkan|tambahkan|perbaiki|check|cek|rebuild|ulang)\b/i.test(prompt)) {
     isBuildRequest = true;
   }
 

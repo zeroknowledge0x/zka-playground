@@ -236,8 +236,11 @@ function saveState() {
 
 // Restore UI from saved state
 function restoreState() {
+  // Clean invalid entries
+  chatHistory = chatHistory.filter(m => ['user','assistant'].includes(m.role) && m.content);
+  localStorage.setItem('zka_chatHistory', JSON.stringify(chatHistory));
   if (chatHistory.length > 0) {
-    chatHistory.forEach(m => addMsg(m.content, m.role === 'assistant' ? 'ai' : m.role));
+    chatHistory.forEach(m => addMsg(m.content, m.role === 'assistant' ? 'ai' : 'user'));
   }
   if (sandboxUrl) {
     document.getElementById('emptyState').style.display = 'none';
@@ -320,7 +323,7 @@ async function doChat(prompt, thinkingMsg) {
       body: JSON.stringify({
         model: model,
         messages: [
-          ...chatHistory.slice(-10).map(m => ({role: m.role === 'ai' ? 'assistant' : m.role, content: m.content})),
+          ...chatHistory.slice(-10).filter(m => ['user','assistant'].includes(m.role)).map(m => ({role: m.role === 'ai' ? 'assistant' : m.role, content: m.content})),
         ],
         max_tokens: 1000,
         stream: false

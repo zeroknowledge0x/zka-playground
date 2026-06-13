@@ -86,6 +86,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .empty-state .icon{font-size:48px;opacity:.3}
 .empty-state p{font-size:14px;max-width:300px;line-height:1.5}
 .empty-state .hint{font-size:12px;color:var(--text3);opacity:.5}
+.preview-loading,.preview-error{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:var(--text3);text-align:center;z-index:5;background:#0d0d0d}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.preview-error .icon{font-size:48px;opacity:.6}
+.rebuild-btn{padding:8px 20px;border-radius:var(--radius);border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:13px;font-family:var(--font);transition:all .15s}
+.rebuild-btn:hover{background:var(--accent);color:#000}
 
 /* CODE VIEW */
 .code-area{flex:1;display:none;overflow:hidden}
@@ -193,6 +199,15 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div class="preview-frame full" id="previewFrame">
         <iframe id="previewIframe" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
       </div>
+      <div class="preview-loading" id="previewLoading" style="display:none">
+        <div class="spinner"></div>
+        <p>Loading preview...</p>
+      </div>
+      <div class="preview-error" id="previewError" style="display:none">
+        <div class="icon">⚠️</div>
+        <p id="previewErrorMsg">Preview unavailable</p>
+        <button class="rebuild-btn" onclick="rebuildLast()">🔄 Rebuild</button>
+      </div>
       <div class="empty-state" id="emptyState">
         <div class="icon">⚡</div>
         <p>Describe your app in the chat and watch it come to life</p>
@@ -243,12 +258,53 @@ function restoreState() {
     chatHistory.forEach(m => addMsg(m.content, m.role === 'assistant' ? 'ai' : 'user'));
   }
   if (sandboxUrl) {
-    document.getElementById('emptyState').style.display = 'none';
-    const iframe = document.getElementById('previewIframe');
-    iframe.src = sandboxUrl;
-    iframe.style.display = 'block';
-    document.getElementById('urlBar').textContent = sandboxUrl.replace('https://', '');
-    renderCodeView();
+    checkAndShowPreview(sandboxUrl);
+    // On mobile, auto-show preview if sandbox exists
+    if (window.innerWidth <= 768) mobileTab('preview');
+  }
+}
+
+// Check sandbox health then show preview
+async function checkAndShowPreview(url) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('previewError').style.display = 'none';
+  document.getElementById('previewLoading').style.display = 'flex';
+  document.getElementById('previewFrame').style.display = 'none';
+
+  try {
+    // Quick health check — HEAD request with 5s timeout
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+    const resp = await fetch(url, {method:'HEAD', mode:'no-cors', signal:ctrl.signal});
+    clearTimeout(timer);
+    // no-cors always returns opaque response (status=0) — that's OK, means URL is reachable
+  } catch(e) {
+    // Abort = timeout, TypeError = network error
+    document.getElementById('previewLoading').style.display = 'none';
+    document.getElementById('previewError').style.display = 'flex';
+    document.getElementById('previewErrorMsg').textContent = 'Sandbox expired or unreachable';
+    sandboxUrl = '';
+    localStorage.removeItem('zka_sandboxUrl');
+    return;
+  }
+
+  // URL reachable — load iframe
+  document.getElementById('previewLoading').style.display = 'none';
+  document.getElementById('previewFrame').style.display = 'block';
+  const iframe = document.getElementById('previewIframe');
+  iframe.src = url;
+  document.getElementById('urlBar').textContent = url.replace('https://', '');
+  renderCodeView();
+}
+
+// Rebuild last prompt
+function rebuildLast() {
+  const lastUserMsg = chatHistory.filter(m => m.role === 'user').pop();
+  if (lastUserMsg) {
+    document.getElementById('promptInput').value = lastUserMsg.content;
+    document.getElementById('previewError').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'flex';
+    doSend();
   }
 }
 
@@ -374,11 +430,8 @@ async function doBuild(prompt, thinkingMsg) {
     thinkingMsg.textContent = 'Done! Your app is ready.';
     addMsg('Live at ' + sandboxUrl, 'system');
 
-    // Show preview
-    document.getElementById('emptyState').style.display = 'none';
-    const iframe = document.getElementById('previewIframe');
-    iframe.src = sandboxUrl;
-    document.getElementById('urlBar').textContent = sandboxUrl.replace('https://', '');
+    // Show preview with loading
+    checkAndShowPreview(sandboxUrl);
 
     // Update code view
     renderCodeView();

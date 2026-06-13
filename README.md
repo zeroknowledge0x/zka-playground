@@ -97,7 +97,7 @@ If you hit a limit, the error will surface in the chat. Wait a moment and try ag
 ## Project Structure
 
 ```
-zk-playground/
+zka-playground/
 ├── docs/
 │   ├── index.html              # The entire app (HTML + CSS + JS)
 │   └── coi-serviceworker.js    # Cross-origin isolation for SharedArrayBuffer

@@ -244,18 +244,18 @@ async function doSend() {
   setStatus('gen');
 
   const model = document.getElementById('modelSel').value;
-  const sys = `You are a web developer. Generate a multi-file project. Return ONLY raw JSON, no markdown fences.
-
-Format: {"files":{"index.html":"...","style.css":"...","app.js":"..."}}
-
-Rules:
-- index.html links to style.css and app.js with relative paths
-- Modern CSS (flexbox/grid), responsive, polished
-- Vanilla JS, ES6+
-- Include realistic sample data
-- 2-5 files depending on complexity
-- Professional look
-- NO explanations, just JSON`;
+  // Build system prompt with escaped JSON example
+  const ex = '{"files":{"index.html":"<!DOCTYPE html>...","style.css":"body{}","app.js":"// code"}}';
+  const sys = "You are a web developer. Generate a multi-file project as JSON.\n\n"
+    + "OUTPUT FORMAT - return ONLY this JSON, nothing else:\n" + ex + "\n\n"
+    + "IMPORTANT RULES:\n"
+    + "- Return ONLY the JSON object. No explanations, no markdown fences, no code blocks.\n"
+    + "- The JSON must have a \"files\" key with filename:content pairs\n"
+    + "- Each file content is a single string with escaped quotes (\\\") and newlines (\\n)\n"
+    + "- index.html must reference style.css via link tag and app.js via script tag\n"
+    + "- Use modern CSS (flexbox/grid), responsive, vanilla JS\n"
+    + "- Include realistic sample content\n"
+    + "- Generate 2-5 files";
 
   try {
     const ctrl = new AbortController();
@@ -287,6 +287,7 @@ Rules:
     document.getElementById('fileNum').textContent = 'FILES ' + Object.keys(parsed).length;
     const elapsed = data.usage ? '' : '';
     document.getElementById('genTime').textContent = Object.keys(parsed).length + ' files';
+    setStatus('ok');
     addMsg('assistant', 'Generated ' + Object.keys(parsed).length + ' files: ' + Object.keys(parsed).join(', '));
     document.getElementById('dlBtn').style.display = '';
   } catch (e) {
@@ -304,7 +305,8 @@ function parseFiles(text) {
   // Strip markdown fences
   const fence = clean.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
   if (fence) clean = fence[1].trim();
-  // Find JSON
+
+  // Try JSON parse first
   const jm = clean.match(/\{[\s\S]*\}/);
   if (jm) {
     try {
@@ -331,10 +333,18 @@ function parseFiles(text) {
       }
     } catch {}
   }
-  // Fallback: single HTML, split into files
-  const hm = text.match(/<!DOCTYPE[\s\S]*<\/html>/i) || text.match(/<html[\s\S]*<\/html>/i);
+
+  // Fallback: raw HTML
+  let html = clean;
+  // Unescape literal \n if present (AI returned escaped HTML)
+  if (html.includes('\\n') && !html.includes('\n')) {
+    html = html.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  }
+  const hm = html.match(/<!DOCTYPE[\s\S]*<\/html>/i) || html.match(/<html[\s\S]*<\/html>/i);
   if (hm) return splitHTML(hm[0]);
-  return { 'index.html': text };
+  // Last resort: wrap in HTML
+  if (html.includes('<') && html.length > 50) return { 'index.html': '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' + html + '</body></html>' };
+  return { 'index.html': html };
 }
 
 function splitHTML(html) {
@@ -433,6 +443,7 @@ function setStatus(s) {
   txt.className = '';
   bar.className = 'gen-bar';
   if (s === 'gen') { dot.classList.add('on'); txt.textContent = 'BUILDING...'; txt.className = 'blink'; bar.classList.add('on'); document.getElementById('chatIdle').textContent = 'GENERATING'; }
+  else if (s === 'ok') { dot.classList.add('on'); txt.textContent = 'IDLE'; document.getElementById('chatIdle').textContent = 'IDLE'; }
   else if (s === 'err') { dot.classList.add('err'); txt.textContent = 'ERROR'; document.getElementById('chatIdle').textContent = 'ERROR'; }
   else { txt.textContent = 'IDLE'; document.getElementById('chatIdle').textContent = 'IDLE'; }
 }
